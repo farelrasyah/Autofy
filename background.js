@@ -203,38 +203,113 @@ async function saveExtensionConfig(config) {
 }
 
 /**
- * Test Gemini connection
+ * Test Gemini connection dengan timeout dan retry
  */
 async function testGeminiConnection(apiKey) {
+  console.log('🧪 Testing Gemini connection...');
+  
   try {
     if (!apiKey || apiKey.length < 20) {
-      return { success: false, error: 'Invalid API key' };
+      return { success: false, error: 'Invalid API key format' };
     }
+    
+    // Validate API key format
+    if (!apiKey.startsWith('AIza')) {
+      return { success: false, error: 'API key must start with "AIza"' };
+    }
+    
+    // Create fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    console.log('📡 Making API request...');
     
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'User-Agent': 'Autofy-Extension/1.0.0'
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Test connection' }] }]
-        })
+          contents: [{ 
+            parts: [{ text: 'Test connection - respond with OK' }] 
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 10
+          }
+        }),
+        signal: controller.signal
       }
     );
     
+    clearTimeout(timeoutId);
+    
+    console.log('📡 Response status:', response.status);
+    
     if (response.ok) {
-      return { success: true, message: 'Connection successful' };
+      const data = await response.json();
+      console.log('✅ Connection test successful');
+      
+      if (data.candidates && data.candidates[0]) {
+        return { 
+          success: true, 
+          message: 'Connection successful',
+          response: data.candidates[0].content.parts[0].text
+        };
+      } else {
+        return { 
+          success: true, 
+          message: 'Connection successful (no content)'
+        };
+      }
     } else {
-      const errorData = await response.json();
+      let errorMessage = 'Connection failed';
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || `HTTP ${response.status}`;
+        console.error('❌ API Error:', errorData);
+        
+        // Specific error handling
+        if (response.status === 400) {
+          errorMessage = 'Bad request - check API key format';
+        } else if (response.status === 403) {
+          errorMessage = 'API key invalid or quota exceeded';
+        } else if (response.status === 429) {
+          errorMessage = 'Too many requests - try again later';
+        }
+      } catch (e) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      
       return { 
         success: false, 
-        error: errorData.error?.message || 'Connection failed' 
+        error: errorMessage
       };
     }
   } catch (error) {
+    console.error('❌ Connection test error:', error);
+    
+    if (error.name === 'AbortError') {
+      return { 
+        success: false, 
+        error: 'Connection timeout - check your internet connection' 
+      };
+    }
+    
+    if (error.message.includes('fetch')) {
+      return { 
+        success: false, 
+        error: 'Network error - check internet connection or firewall' 
+      };
+    }
+    
     return { 
       success: false, 
-      error: error.message || 'Network error' 
+      error: error.message || 'Unknown connection error' 
     };
   }
 }

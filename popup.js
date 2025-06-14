@@ -192,14 +192,26 @@ async function testGeminiConnection(showResult = true) {
   testBtn.disabled = true;
   testBtn.innerHTML = '<span>⏳</span> Testing...';
   updateConnectionStatus('testing', 'Menguji koneksi...');
-  
   try {
-    // Send test request to background script
-    const response = await new Promise((resolve) => {
+    // Send test request to background script dengan timeout
+    const response = await new Promise((resolve, reject) => {
+      // Set timeout untuk message
+      const timeout = setTimeout(() => {
+        reject(new Error('Request timeout - background script tidak merespons'));
+      }, 15000); // 15 detik timeout
+      
       chrome.runtime.sendMessage({
         action: 'testGeminiConnection',
         apiKey: apiKey
-      }, resolve);
+      }, (response) => {
+        clearTimeout(timeout);
+        
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
     });
     
     if (response.success) {
