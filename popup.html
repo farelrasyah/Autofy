@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autofy - AI Form Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      width: 400px;
+      min-height: 500px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+    }
+
+    .container {
+      background: white;
+      margin: 0;
+      min-height: 500px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .api-key-container {
+      position: relative;
+    }
+
+    .api-key-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+
+    .checkbox-group label {
+      margin: 0;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .status-message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .status-message.success {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+
+    .status-message.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .status-message.info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-indicator.connected {
+      background: #28a745;
+    }
+
+    .status-indicator.disconnected {
+      background: #dc3545;
+    }
+
+    .status-indicator.testing {
+      background: #ffc107;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .quick-actions {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .quick-actions h4 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #495057;
+    }
+
+    .quick-btn {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quick-btn:hover {
+      background: #e9ecef;
+    }
+
+    .quick-btn:last-child {
+      margin-bottom: 0;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .version-info {
+      text-align: center;
+      font-size: 11px;
+      color: #adb5bd;
+      padding: 15px;
+      border-top: 1px solid #e9ecef;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>
+        <span>🤖</span>
+        Autofy
+      </h1>
+      <p>AI-Powered Google Form Assistant</p>
+    </div>
+
+    <div class="content">
+      <div id="status-message" class="status-message"></div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <h4>🚀 Aksi Cepat</h4>
+        <button class="quick-btn" id="open-form-btn">
+          <span>📝</span>
+          Buka Google Form
+        </button>
+        <button class="quick-btn" id="test-connection-btn">
+          <span>🔗</span>
+          Test Koneksi Gemini
+        </button>
+        <button class="quick-btn" id="view-tutorial-btn">
+          <span>📚</span>
+          Lihat Tutorial
+        </button>
+      </div>
+
+      <!-- API Configuration -->
+      <div class="section">
+        <h3>🔑 Konfigurasi API</h3>
+        
+        <div class="form-group">
+          <label for="api-key">Gemini API Key</label>
+          <div class="api-key-container">
+            <input type="password" id="api-key" placeholder="Masukkan API key Gemini Anda">
+            <button type="button" class="api-key-toggle" id="toggle-api-key">👁️</button>
+          </div>
+          <div class="connection-status" id="connection-status">
+            <div class="status-indicator disconnected"></div>
+            <span>Belum terhubung</span>
+          </div>
+          <div class="help-text">
+            Dapatkan API key gratis di <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="section">
+        <h3>⚙️ Preferensi</h3>
+        
+        <div class="form-group">
+          <label for="response-style">Gaya Respons</label>
+          <select id="response-style">
+            <option value="natural">Natural - Jawaban yang natural dan conversational</option>
+            <option value="formal">Formal - Jawaban yang formal dan profesional</option>
+            <option value="brief">Singkat - Jawaban yang ringkas dan to the point</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="language">Bahasa</label>
+          <select id="language">
+            <option value="id">Indonesia</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fill-speed">Kecepatan Pengisian</label>
+          <select id="fill-speed">
+            <option value="slow">Lambat - Seperti manusia mengetik</option>
+            <option value="normal">Normal - Kecepatan sedang</option>
+            <option value="fast">Cepat - Isi dengan cepat</option>
+          </select>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="auto-fill">
+          <label for="auto-fill">Aktifkan auto-fill otomatis</label>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="notifications">
+          <label for="notifications">Tampilkan notifikasi</label>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="button-group">
+        <button class="btn btn-secondary" id="reset-btn">
+          <span>🔄</span>
+          Reset
+        </button>
+        <button class="btn btn-primary" id="save-btn">
+          <span>💾</span>
+          Simpan
+        </button>
+      </div>
+    </div>
+
+    <div class="version-info">
+      Autofy v1.0.0 - Dibuat dengan ❤️ oleh Farel Rasyah
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

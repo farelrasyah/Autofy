@@ -1,0 +1,54 @@
+{
+  "name": "autofy-extension",
+  "version": "1.0.0",
+  "description": "Chrome Extension yang menggunakan Gemini AI untuk mengisi Google Form secara otomatis",
+  "main": "background.js",
+  "scripts": {
+    "build": "node build.js",
+    "build:interactive": "node build.js --interactive",
+    "dev": "echo \"Development mode - load extension directly from root folder\"",
+    "test": "echo \"No tests specified yet\"",
+    "lint": "echo \"Linting files...\"",
+    "package": "npm run build && npm run zip",
+    "zip": "powershell Compress-Archive -Path .\\build\\* -DestinationPath .\\autofy-extension.zip -Force",
+    "clean": "powershell Remove-Item -Path .\\build -Recurse -Force -ErrorAction SilentlyContinue",
+    "setup": "npm run setup:env && npm run setup:icons",
+    "setup:env": "powershell Copy-Item -Path .\\.env.example -Destination .\\.env -Force",
+    "setup:icons": "powershell New-Item -ItemType Directory -Path .\\icons -Force"
+  },
+  "keywords": [
+    "chrome-extension",
+    "google-form",
+    "ai",
+    "gemini",
+    "automation",
+    "form-filler",
+    "productivity"
+  ],
+  "author": {
+    "name": "Farel Rasyah",
+    "email": "your-email@example.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/autofy-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/autofy-extension/issues"
+  },
+  "homepage": "https://github.com/your-username/autofy-extension#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {},
+  "chrome": {
+    "minimum_version": "88"
+  },
+  "manifest": {
+    "name": "Autofy - Google Form AI Assistant",
+    "version": "1.0.0",
+    "manifest_version": 3
+  }
+}
