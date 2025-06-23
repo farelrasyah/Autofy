@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Form Analyzer - Multiple Choice Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .mock-form {
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .mock-question {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        
+        .mock-question h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        /* Google Forms-like styling */
+        .freebirdFormviewerComponentsQuestionBaseRoot {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .freebirdFormviewerComponentsQuestionBaseTitle {
+            font-size: 16px;
+            font-weight: 400;
+            color: #202124;
+            margin-bottom: 8px;
+        }
+        
+        .freebirdFormviewerComponentsQuestionRadioChoice {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .freebirdFormviewerComponentsQuestionRadioChoice:hover {
+            background: #f8f9fa;
+        }
+        
+        .freebirdFormviewerComponentsQuestionRadioChoice input[type="radio"] {
+            margin-right: 12px;
+        }
+        
+        .aDTYNe {
+            color: #202124;
+            font-size: 14px;
+        }
+        
+        .quantumWizTogglePaperradioEl {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+        }
+        
+        .quantumWizTogglePaperradioEl input[type="radio"] {
+            margin-right: 12px;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        
+        button:hover {
+            background: #1565c0;
+        }
+        
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        
+        .test-result.pass {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .test-result.fail {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Form Analyzer - Multiple Choice Detection</h1>
+        <p>This page tests the enhanced form analyzer's ability to detect multiple choice questions without "missing input element" errors.</p>
+        
+        <div id="status" class="status info">
+            Status: Ready to test
+        </div>
+        
+        <div class="mock-form">
+            <h2>📋 Mock Google Form - Various Multiple Choice Layouts</h2>
+            
+            <!-- Standard Google Forms Layout -->
+            <div class="freebirdFormviewerComponentsQuestionBaseRoot">
+                <div class="freebirdFormviewerComponentsQuestionBaseTitle">
+                    What is your favorite programming language?
+                </div>
+                <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                    <input type="radio" id="lang1" name="language" value="javascript">
+                    <span class="aDTYNe">JavaScript</span>
+                </div>
+                <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                    <input type="radio" id="lang2" name="language" value="python">
+                    <span class="aDTYNe">Python</span>
+                </div>
+                <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                    <input type="radio" id="lang3" name="language" value="java">
+                    <span class="aDTYNe">Java</span>
+                </div>
+            </div>
+            
+            <!-- Alternative Layout 1 - Quantum Style -->
+            <div class="freebirdFormviewerComponentsQuestionBaseRoot">
+                <div class="freebirdFormviewerComponentsQuestionBaseTitle">
+                    Which framework do you prefer?
+                </div>
+                <div class="quantumWizTogglePaperradioEl">
+                    <input type="radio" id="fw1" name="framework" value="react">
+                    <span>React</span>
+                </div>
+                <div class="quantumWizTogglePaperradioEl">
+                    <input type="radio" id="fw2" name="framework" value="vue">
+                    <span>Vue</span>
+                </div>
+                <div class="quantumWizTogglePaperradioEl">
+                    <input type="radio" id="fw3" name="framework" value="angular">
+                    <span>Angular</span>
+                </div>
+            </div>
+            
+            <!-- Alternative Layout 2 - ARIA Only -->
+            <div class="freebirdFormviewerComponentsQuestionBaseRoot">
+                <div class="freebirdFormviewerComponentsQuestionBaseTitle">
+                    What is your experience level?
+                </div>
+                <div role="radiogroup">
+                    <div role="radio" aria-checked="false" data-value="beginner" tabindex="0">
+                        <span>Beginner</span>
+                    </div>
+                    <div role="radio" aria-checked="false" data-value="intermediate" tabindex="-1">
+                        <span>Intermediate</span>
+                    </div>
+                    <div role="radio" aria-checked="false" data-value="advanced" tabindex="-1">
+                        <span>Advanced</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alternative Layout 3 - Data Attributes Only -->
+            <div class="freebirdFormviewerComponentsQuestionBaseRoot">
+                <div class="freebirdFormviewerComponentsQuestionBaseTitle">
+                    How often do you code?
+                </div>
+                <div class="question-options">
+                    <div data-answer-value="daily" data-value="daily">
+                        <span>Daily</span>
+                    </div>
+                    <div data-answer-value="weekly" data-value="weekly">
+                        <span>Weekly</span>
+                    </div>
+                    <div data-answer-value="monthly" data-value="monthly">
+                        <span>Monthly</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alternative Layout 4 - Minimal Structure -->
+            <div class="mock-question">
+                <h3>Which operating system do you use?</h3>
+                <div role="radio" aria-checked="false">Windows</div>
+                <div role="radio" aria-checked="false">macOS</div>
+                <div role="radio" aria-checked="false">Linux</div>
+            </div>
+        </div>
+        
+        <div>
+            <button onclick="testFormAnalyzer()">🧪 Test Form Analyzer</button>
+            <button onclick="testSpecificQuestion(0)">Test Q1</button>
+            <button onclick="testSpecificQuestion(1)">Test Q2</button>
+            <button onclick="testSpecificQuestion(2)">Test Q3</button>
+            <button onclick="testSpecificQuestion(3)">Test Q4</button>
+            <button onclick="testSpecificQuestion(4)">Test Q5</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <div id="test-results"></div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- Load the scripts -->
+    <script src="config.js"></script>
+    <script src="form-analyzer.js"></script>
+    
+    <script>
+        let testLog = [];
+        let testResults = [];
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            testLog.push(logMessage);
+            console.log(message);
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const logElement = document.getElementById('log');
+            logElement.innerHTML = testLog.join('\n');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = `Status: ${message}`;
+            statusElement.className = `status ${type}`;
+        }
+        
+        function addTestResult(testName, passed, details) {
+            testResults.push({ testName, passed, details });
+            updateTestResultsDisplay();
+        }
+        
+        function updateTestResultsDisplay() {
+            const resultsElement = document.getElementById('test-results');
+            const resultsHTML = testResults.map(result => {
+                const className = result.passed ? 'pass' : 'fail';
+                const icon = result.passed ? '✅' : '❌';
+                return `<div class="test-result ${className}">
+                    ${icon} <strong>${result.testName}</strong><br>
+                    ${result.details}
+                </div>`;
+            }).join('');
+            
+            resultsElement.innerHTML = resultsHTML;
+        }
+        
+        function clearLog() {
+            testLog = [];
+            testResults = [];
+            updateLogDisplay();
+            updateTestResultsDisplay();
+        }
+        
+        async function testFormAnalyzer() {
+            try {
+                updateStatus('Testing form analyzer...', 'info');
+                log('🧪 Starting enhanced form analyzer test...');
+                
+                // Clear previous results
+                testResults = [];
+                
+                // Initialize form analyzer
+                const formAnalyzer = new FormAnalyzer();
+                
+                // Test form analysis
+                log('🔍 Analyzing mock form...');
+                const questions = await formAnalyzer.analyzeForm();
+                
+                log(`📊 Analysis complete. Found ${questions.length} questions`);
+                
+                // Expected number of questions
+                const expectedQuestions = 5;
+                const foundExpectedCount = questions.length === expectedQuestions;
+                
+                addTestResult(
+                    'Question Count', 
+                    foundExpectedCount,
+                    `Expected: ${expectedQuestions}, Found: ${questions.length}`
+                );
+                
+                // Test each question
+                let multipleChoiceCount = 0;
+                let questionsWithInputElement = 0;
+                let questionsWithOptions = 0;
+                let validQuestions = 0;
+                
+                questions.forEach((question, index) => {
+                    log(`\n--- Question ${index + 1} ---`);
+                    log(`Text: "${question.text?.substring(0, 50)}..."`);
+                    log(`Type: ${question.type}`);
+                    log(`Has Input Element: ${!!question.inputElement}`);
+                    log(`Options Count: ${question.options?.length || 0}`);
+                    log(`Options: ${question.options?.join(', ') || 'None'}`);
+                    
+                    // Count question types
+                    if (question.type === 'multiple_choice') {
+                        multipleChoiceCount++;
+                    }
+                    
+                    if (question.inputElement) {
+                        questionsWithInputElement++;
+                    }
+                    
+                    if (question.options && question.options.length > 0) {
+                        questionsWithOptions++;
+                    }
+                    
+                    // A question is valid if it has text and either input element or options
+                    if (question.text && (question.inputElement || question.options?.length > 0)) {
+                        validQuestions++;
+                        
+                        addTestResult(
+                            `Question ${index + 1} Validity`,
+                            true,
+                            `Type: ${question.type}, Input: ${!!question.inputElement}, Options: ${question.options?.length || 0}`
+                        );
+                    } else {
+                        addTestResult(
+                            `Question ${index + 1} Validity`,
+                            false,
+                            `Missing text or input/options. Text: ${!!question.text}, Input: ${!!question.inputElement}, Options: ${question.options?.length || 0}`
+                        );
+                    }
+                });
+                
+                // Summary tests
+                log(`\n📊 Test Summary:`);
+                log(`Multiple Choice Questions: ${multipleChoiceCount}`);
+                log(`Questions with Input Element: ${questionsWithInputElement}`);
+                log(`Questions with Options: ${questionsWithOptions}`);
+                log(`Valid Questions: ${validQuestions}`);
+                
+                addTestResult(
+                    'Multiple Choice Detection',
+                    multipleChoiceCount >= 4, // We expect at least 4 multiple choice questions
+                    `Found ${multipleChoiceCount} multiple choice questions`
+                );
+                
+                addTestResult(
+                    'Input Element Detection',
+                    questionsWithInputElement >= 3, // At least 3 should have input elements
+                    `${questionsWithInputElement} questions have input elements`
+                );
+                
+                addTestResult(
+                    'Options Extraction',
+                    questionsWithOptions >= 4, // At least 4 should have options
+                    `${questionsWithOptions} questions have options extracted`
+                );
+                
+                addTestResult(
+                    'Overall Validity',
+                    validQuestions === questions.length && validQuestions >= 4,
+                    `${validQuestions}/${questions.length} questions are valid`
+                );
+                
+                // Check for the specific error we're trying to fix
+                const hasInputElementErrors = testLog.some(entry => 
+                    entry.includes('missing input element') || 
+                    entry.includes('invalid or missing input element')
+                );
+                
+                addTestResult(
+                    'No Input Element Errors',
+                    !hasInputElementErrors,
+                    hasInputElementErrors ? 'Found input element errors in log' : 'No input element errors detected'
+                );
+                
+                const overallSuccess = validQuestions === questions.length && 
+                                     multipleChoiceCount >= 4 && 
+                                     !hasInputElementErrors;
+                
+                if (overallSuccess) {
+                    updateStatus('All tests passed!', 'success');
+                    log('🎉 All tests passed! Form analyzer working correctly.');
+                } else {
+                    updateStatus('Some tests failed', 'error');
+                    log('⚠️ Some tests failed. Check results above.');
+                }
+                
+            } catch (error) {
+                log(`❌ Error during test: ${error.message}`);
+                updateStatus('Test failed with error', 'error');
+                addTestResult('Test Execution', false, `Error: ${error.message}`);
+            }
+        }
+        
+        async function testSpecificQuestion(questionIndex) {
+            try {
+                log(`🎯 Testing specific question ${questionIndex + 1}...`);
+                
+                const formAnalyzer = new FormAnalyzer();
+                const questions = await formAnalyzer.analyzeForm();
+                
+                if (questionIndex >= questions.length) {
+                    log(`❌ Question ${questionIndex + 1} not found`);
+                    return;
+                }
+                
+                const question = questions[questionIndex];
+                
+                log(`📝 Question ${questionIndex + 1}:`);
+                log(`  Text: "${question.text}"`);
+                log(`  Type: ${question.type}`);
+                log(`  Input Element: ${!!question.inputElement}`);
+                log(`  Options: ${question.options?.length || 0}`);
+                log(`  Valid: ${!!(question.text && (question.inputElement || question.options?.length > 0))}`);
+                
+            } catch (error) {
+                log(`❌ Error testing question ${questionIndex + 1}: ${error.message}`);
+            }
+        }
+        
+        // Initialize test page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Form Analyzer Test Page initialized');
+            updateStatus('Ready to test', 'info');
+        });
+    </script>
+</body>
+</html>

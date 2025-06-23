@@ -27,7 +27,8 @@
         "api-protection.js", 
         "gemini-service.js",
         "form-analyzer.js",
-        "form-filler.js",
+        "form-filler-enhanced.js",
+        "form-filling-debugger.js",
         "debug-tools.js",
         "debug-extended.js",
         "content.js"

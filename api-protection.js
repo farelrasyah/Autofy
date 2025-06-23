@@ -4,24 +4,56 @@
  */
 
 class ApiKeyProtection {
-  constructor() {    // Encoded API key - Base64 encoded untuk menyembunyikan di source code
+  constructor() {
+    // Multiple API keys untuk failover jika quota habis
     this.encodedKeys = [
-      'QUl6YVN5QVJJS3dubHJVZUl4cEd2VFM1VmhSeHVSMkhoV1FDeG9Z', // Base64 encoded API key
-      '7ea8c820a525b78c3b2b4b5e8a4d2f1c9e6b8a7f5d3c1a9e8b7f4c2d1a', // Hex dummy
-      'sk_test_dummy_key_12345', // Dummy key
+      'QUl6YVN5QVJJS3dubHJVZUl4cEd2VFM1VmhSeHVSMkhoV1FDeG9Z', // Base64 encoded API key 1
+      'QUl6YVN5Q0JUV1Q0YmhLcENlQXoxUWRHUGNOWWNGZEJHb1k5Skk', // Base64 encoded API key 2 (fallback)
+      'QUl6YVN5QlM0VnBXV2ZKa1BmUzVaVGRMdEhxQjNWeGZZYzZMbkk', // Base64 encoded API key 3 (fallback)
     ];
     
-    // Real key akan dipilih berdasarkan hash environment
-    this.keyIndex = this.getKeyIndex();
+    // Track quota status untuk setiap key
+    this.keyStatus = {
+      0: { quota_exceeded: false, last_error: null },
+      1: { quota_exceeded: false, last_error: null },
+      2: { quota_exceeded: false, last_error: null }
+    };
+    
+    this.currentKeyIndex = 0;
+  }
+  /**
+   * Mendapatkan API key yang sedang aktif
+   */
+  getApiKey() {
+    return this.getAvailableApiKey();
   }
 
   /**
-   * Mendapatkan API key yang sudah di-decode
+   * Mendapatkan API key yang tersedia (belum quota exceeded)
    */
-  getApiKey() {
+  getAvailableApiKey() {
+    // Cari key yang belum quota exceeded
+    for (let i = 0; i < this.encodedKeys.length; i++) {
+      const keyIndex = (this.currentKeyIndex + i) % this.encodedKeys.length;
+      
+      if (!this.keyStatus[keyIndex].quota_exceeded) {
+        this.currentKeyIndex = keyIndex;
+        return this.decodeApiKey(keyIndex);
+      }
+    }
+    
+    // Jika semua key quota exceeded, reset dan coba lagi
+    console.warn('All API keys quota exceeded, resetting status...');
+    this.resetQuotaStatus();
+    return this.decodeApiKey(0);
+  }
+
+  /**
+   * Decode API key berdasarkan index
+   */
+  decodeApiKey(keyIndex) {
     try {
-      // Decode base64 key
-      const encodedKey = this.encodedKeys[0];
+      const encodedKey = this.encodedKeys[keyIndex];
       const decodedKey = atob(encodedKey);
       
       // Validasi format
@@ -29,12 +61,46 @@ class ApiKeyProtection {
         return decodedKey;
       }
       
-      // Fallback ke hardcoded (akan di-obfuscate)
+      // Fallback ke hardcoded
       return this.getFallbackKey();
     } catch (error) {
-      console.warn('Key decode failed, using fallback');
+      console.warn(`Key decode failed for index ${keyIndex}, using fallback`);
       return this.getFallbackKey();
     }
+  }
+
+  /**
+   * Mark API key sebagai quota exceeded
+   */
+  markQuotaExceeded(apiKey, error) {
+    // Cari index dari API key yang error
+    for (let i = 0; i < this.encodedKeys.length; i++) {
+      const decodedKey = this.decodeApiKey(i);
+      if (decodedKey === apiKey) {
+        this.keyStatus[i].quota_exceeded = true;
+        this.keyStatus[i].last_error = error;
+        console.warn(`API key ${i} marked as quota exceeded:`, error);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Reset status quota untuk semua keys
+   */
+  resetQuotaStatus() {
+    Object.keys(this.keyStatus).forEach(key => {
+      this.keyStatus[key].quota_exceeded = false;
+      this.keyStatus[key].last_error = null;
+    });
+  }
+
+  /**
+   * Get next available API key untuk retry
+   */
+  getNextApiKey() {
+    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.encodedKeys.length;
+    return this.getAvailableApiKey();
   }
 
   /**

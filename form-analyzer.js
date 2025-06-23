@@ -55,43 +55,50 @@ class FormAnalyzer {
   extractQuestions() {
     this.questions = [];
     console.log('🔍 Starting question extraction...');
-    
-    // Multiple selectors for different Google Form layouts
+      // Enhanced selectors - lebih comprehensive
     const selectors = [
-      // Modern Google Forms
+      // Modern Google Forms (2024)
       '[data-params*="question"]',
       '[role="listitem"][data-params]',
       '[jsmodel][data-params]',
-      // Legacy selectors
+      '[data-item-id]',
+      // Legacy and alternative selectors
       '.freebirdFormviewerComponentsQuestionBaseRoot',
       '.Qr7Oae',
-      // Alternative selectors
-      '[data-item-id]',
       '.geS5n',
-      '.z12JJ'
+      '.z12JJ',
+      // Additional selectors untuk berbagai layout
+      '.freebirdFormviewerViewItemsItemItem',
+      '[data-initial-value]',
+      '.exportItemContainer',
+      // Broad fallback selectors
+      'div[data-params]',
+      'div[jsmodel]'
     ];
     
     let questionContainers = [];
-    
-    // Try each selector until we find questions
+      // Try each selector with validation
     for (const selector of selectors) {
-      questionContainers = document.querySelectorAll(selector);
-      console.log(`🔍 Selector "${selector}" found ${questionContainers.length} containers`);
-      
-      if (questionContainers.length > 0) {
-        // Filter containers that actually contain questions
-        const validContainers = Array.from(questionContainers).filter(container => {
-          const hasQuestionText = container.querySelector('[data-docs-text-id], [dir="auto"], .M7eMe, .AgroKb, span[jsname]');
-          const hasInput = container.querySelector('input, textarea, select, [role="listbox"], [data-value]');
-          return hasQuestionText && hasInput;
-        });
+      try {
+        const containers = document.querySelectorAll(selector);
+        console.log(`🔍 Selector "${selector}" found ${containers.length} containers`);
         
-        console.log(`🔍 Found ${validContainers.length} valid question containers`);
-        
-        if (validContainers.length > 0) {
-          questionContainers = validContainers;
-          break;
+        if (containers.length > 0) {
+          // Filter containers yang benar-benar berisi question
+          const validContainers = Array.from(containers).filter(container => {
+            return this.isValidQuestionContainer(container);
+          });
+          
+          console.log(`✅ Found ${validContainers.length} valid question containers with "${selector}"`);
+          
+          if (validContainers.length > 0) {
+            questionContainers = validContainers;
+            console.log(`🎯 Using selector: "${selector}"`);
+            break;
+          }
         }
+      } catch (error) {
+        console.warn(`⚠️ Error with selector "${selector}":`, error);
       }
     }
     
@@ -99,17 +106,28 @@ class FormAnalyzer {
       console.warn('⚠️ No question containers found, trying fallback method...');
       this.extractQuestionsAlternative();
       return;
-    }
-    
-    questionContainers.forEach((container, index) => {
+    }      questionContainers.forEach((container, index) => {
       try {
         console.log(`📝 Extracting question ${index + 1}...`);
         const question = this.extractQuestionFromContainer(container, index);
-        if (question && question.text) {
+        
+        // More flexible validation for different question types
+        const isValidQuestion = question && question.text && (
+          question.inputElement || // Has input element
+          question.type === 'multiple_choice' || // Multiple choice might not have direct input
+          question.options.length > 0 // Has options (for multiple choice/checkbox/dropdown)
+        );
+        
+        if (isValidQuestion) {
           this.questions.push(question);
           console.log(`✅ Question ${index + 1}: "${question.text.substring(0, 50)}..." (${question.type})`);
         } else {
-          console.warn(`⚠️ Question ${index + 1}: Failed to extract`);
+          console.warn(`⚠️ Question ${index + 1} invalid or missing input element:`, {
+            hasText: !!question?.text,
+            hasInputElement: !!question?.inputElement,
+            type: question?.type,
+            optionsCount: question?.options?.length || 0
+          });
         }
       } catch (error) {
         console.error(`❌ Error extracting question ${index + 1}:`, error);
@@ -166,9 +184,14 @@ class FormAnalyzer {
     // Tentukan jenis pertanyaan dan ekstrak opsi
     const questionType = this.determineQuestionType(container);
     console.log(`📝 Question type determined: ${questionType}`);
+      const options = this.extractOptions(container, questionType);
+    let inputElement = this.findInputElement(container, questionType);
     
-    const options = this.extractOptions(container, questionType);
-    const inputElement = this.findInputElement(container, questionType);
+    // For multiple choice, if no specific input element found, use container as fallback
+    if (!inputElement && questionType === 'multiple_choice' && options.length > 0) {
+      console.log(`⚠️ No specific input found for multiple choice, using container as fallback`);
+      inputElement = container;
+    }
     
     console.log(`📝 Input element found: ${!!inputElement}`);
     console.log(`📝 Options found: ${options.length}`);
@@ -187,10 +210,30 @@ class FormAnalyzer {
 
   /**
    * Menentukan jenis pertanyaan berdasarkan struktur DOM
-   */
-  determineQuestionType(container) {
-    // Multiple choice (radio buttons)
-    if (container.querySelector('input[type="radio"], .freebirdFormviewerComponentsQuestionRadioChoice')) {
+   */  determineQuestionType(container) {
+    console.log('🔍 Determining question type...');
+    
+    // Multiple choice (radio buttons) - Enhanced detection
+    const multipleChoiceSelectors = [
+      'input[type="radio"]',
+      '[role="radio"]',
+      '.freebirdFormviewerComponentsQuestionRadioChoice',
+      '.quantumWizTogglePaperradioEl',
+      '.docssharedWizToggleLabeledLabelWrapper',
+      '[data-answer-value][role="radio"]'
+    ];
+    
+    for (const selector of multipleChoiceSelectors) {
+      if (container.querySelector(selector)) {
+        console.log(`✅ Multiple choice detected with selector: ${selector}`);
+        return 'multiple_choice';
+      }
+    }
+    
+    // Check for multiple choice by looking for multiple radio-like elements
+    const radioLikeElements = container.querySelectorAll('[role="radio"], [aria-checked], [data-answer-value]');
+    if (radioLikeElements.length > 1) {
+      console.log(`✅ Multiple choice detected by multiple radio-like elements: ${radioLikeElements.length}`);
       return 'multiple_choice';
     }
 
@@ -254,20 +297,75 @@ class FormAnalyzer {
 
   /**
    * Mengekstrak opsi untuk pertanyaan multiple choice/checkbox/dropdown
-   */
-  extractOptions(container, questionType) {
+   */  extractOptions(container, questionType) {
     const options = [];
+    console.log(`🔍 Extracting options for type: ${questionType}`);
 
     if (questionType === 'multiple_choice' || questionType === 'checkbox') {
-      // Radio buttons atau checkboxes
-      const optionElements = container.querySelectorAll('.freebirdFormviewerComponentsQuestionRadioChoice, .freebirdFormviewerComponentsQuestionCheckboxChoice, [data-value]');
+      // Enhanced option extraction for multiple choice/checkbox
+      const optionSelectors = [
+        '.freebirdFormviewerComponentsQuestionRadioChoice',
+        '.freebirdFormviewerComponentsQuestionCheckboxChoice', 
+        '.quantumWizTogglePaperradioEl',
+        '.quantumWizTogglePapercheckboxEl',
+        '.docssharedWizToggleLabeledLabelWrapper',
+        '[role="radio"]',
+        '[role="checkbox"]',
+        '[data-value]',
+        '[data-answer-value]'
+      ];
       
-      optionElements.forEach(optionEl => {
-        const textElement = optionEl.querySelector('span[dir="auto"], .aDTYNe, .eRqjfd');
-        if (textElement && textElement.textContent?.trim()) {
-          options.push(textElement.textContent.trim());
+      let optionElements = [];
+      
+      // Try each selector to find option elements
+      for (const selector of optionSelectors) {
+        optionElements = container.querySelectorAll(selector);
+        if (optionElements.length > 0) {
+          console.log(`✅ Found ${optionElements.length} options with selector: ${selector}`);
+          break;
+        }
+      }
+      
+      // Extract text from option elements
+      optionElements.forEach((optionEl, index) => {
+        const textSelectors = [
+          'span[dir="auto"]',
+          '.aDTYNe',
+          '.eRqjfd',
+          '.docssharedWizToggleLabeledContent',
+          'label',
+          '[aria-label]'
+        ];
+        
+        let optionText = '';
+        
+        // Try different methods to get option text
+        for (const textSelector of textSelectors) {
+          const textElement = optionEl.querySelector(textSelector);
+          if (textElement && textElement.textContent?.trim()) {
+            optionText = textElement.textContent.trim();
+            break;
+          }
+        }
+        
+        // Fallback to element's own text content
+        if (!optionText && optionEl.textContent?.trim()) {
+          optionText = optionEl.textContent.trim();
+        }
+        
+        // Fallback to data attributes
+        if (!optionText) {
+          optionText = optionEl.getAttribute('data-value') || 
+                      optionEl.getAttribute('data-answer-value') ||
+                      optionEl.getAttribute('aria-label') || '';
+        }
+        
+        if (optionText) {
+          options.push(optionText);
+          console.log(`  Option ${index + 1}: "${optionText}"`);
         }
       });
+      
     } else if (questionType === 'dropdown') {
       // Dropdown options
       const selectElement = container.querySelector('select');
@@ -290,21 +388,65 @@ class FormAnalyzer {
       });
     }
 
+    console.log(`📝 Total options extracted: ${options.length}`);
     return options;
   }
   /**
    * Mencari elemen input untuk pertanyaan
-   */
-  findInputElement(container, questionType) {
+   */  findInputElement(container, questionType) {
     console.log(`🔍 Finding input element for type: ${questionType}`);
     
     let element = null;
     
     switch (questionType) {
       case 'multiple_choice':
-        element = container.querySelector('input[type="radio"]') ||
-                 container.querySelector('[role="radio"]') ||
-                 container.querySelector('.freebirdFormviewerComponentsQuestionRadioChoice');
+        // Try multiple selectors for radio buttons
+        const radioSelectors = [
+          'input[type="radio"]',
+          '[role="radio"]',
+          '.freebirdFormviewerComponentsQuestionRadioChoice input[type="radio"]',
+          '.freebirdFormviewerComponentsQuestionRadioChoice [role="radio"]',
+          '.quantumWizTogglePaperradioEl input[type="radio"]',
+          '.quantumWizTogglePaperradioEl [role="radio"]',
+          '.docssharedWizToggleLabeledLabelWrapper input[type="radio"]',
+          '[data-answer-value]'
+        ];
+        
+        for (const selector of radioSelectors) {
+          element = container.querySelector(selector);
+          if (element) {
+            console.log(`✅ Found radio input with selector: ${selector}`);
+            break;
+          }
+        }
+        
+        // If no input found, try to find clickable radio containers
+        if (!element) {
+          const clickableSelectors = [
+            '.freebirdFormviewerComponentsQuestionRadioChoice',
+            '.quantumWizTogglePaperradioEl',
+            '.docssharedWizToggleLabeledLabelWrapper',
+            '[role="radio"]'
+          ];
+          
+          for (const selector of clickableSelectors) {
+            const clickableElement = container.querySelector(selector);
+            if (clickableElement) {
+              console.log(`✅ Found clickable radio container with selector: ${selector}`);
+              element = clickableElement; // Use container as fallback
+              break;
+            }
+          }
+        }
+        
+        // Final fallback - use the container itself if it has radio-like characteristics
+        if (!element) {
+          const hasRadioAttributes = container.querySelector('[aria-checked], [data-value], [data-answer-value]');
+          if (hasRadioAttributes) {
+            console.log(`✅ Using container with radio attributes as fallback`);
+            element = container;
+          }
+        }
         break;
       
       case 'checkbox':
@@ -436,6 +578,63 @@ class FormAnalyzer {
    */
   refresh() {
     return this.analyzeForm();
+  }
+
+  /**
+   * Check if container is a valid question container
+   */
+  isValidQuestionContainer(container) {
+    // Check for question text with multiple selectors
+    const questionTextSelectors = [
+      '[data-docs-text-id]',
+      '[dir="auto"]',
+      '.M7eMe',
+      '.AgroKb', 
+      'span[jsname]',
+      '.freebirdFormviewerComponentsQuestionBaseTitle',
+      '[role="heading"]',
+      '.Elumcf', // Additional selector
+      '.exportLabel'
+    ];
+    
+    const hasQuestionText = questionTextSelectors.some(selector => 
+      container.querySelector(selector)
+    );
+    
+    // Check for input elements with comprehensive list
+    const inputSelectors = [
+      'input[type="text"]',
+      'input[type="email"]', 
+      'input[type="number"]',
+      'input[type="url"]',
+      'input[type="tel"]',
+      'input[type="date"]',
+      'input[type="time"]',
+      'textarea',
+      'select',
+      '[role="listbox"]',
+      '[role="checkbox"]',
+      '[role="radio"]',
+      '[data-value]',
+      'input[type="radio"]',
+      'input[type="checkbox"]',
+      '.quantumWizTextinputPaperinputInput', // Google Forms specific
+      '.quantumWizTextinputPapertextareaInput'
+    ];
+    
+    const hasInput = inputSelectors.some(selector => 
+      container.querySelector(selector)
+    );
+    
+    if (!hasQuestionText || !hasInput) {
+      console.log('❌ Invalid container:', {
+        hasQuestionText,
+        hasInput,
+        containerHTML: container.outerHTML.substring(0, 200) + '...'
+      });
+    }
+    
+    return hasQuestionText && hasInput;
   }
 }
 

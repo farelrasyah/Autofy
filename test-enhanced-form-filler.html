@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Enhanced Form Filler - Multiple Choice Selection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .test-form {
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .question {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        
+        .question h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .radio-group {
+            margin: 10px 0;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .radio-option:hover {
+            background: #e3f2fd;
+        }
+        
+        .radio-option input[type="radio"] {
+            margin-right: 10px;
+        }
+        
+        .radio-option.selected {
+            background: #c8e6c9;
+            border: 2px solid #4caf50;
+        }
+        
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        
+        button:hover {
+            background: #1565c0;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Enhanced Form Filler - Multiple Choice Selection</h1>
+        <p>This page tests the enhanced form filler's ability to properly select multiple choice options in different formats.</p>
+        
+        <div id="status" class="status info">
+            Status: Ready to test
+        </div>
+        
+        <div class="test-form">
+            <h2>📋 Test Form - Multiple Choice Questions</h2>
+            
+            <!-- Standard radio buttons -->
+            <div class="question" data-question-type="multiple_choice">
+                <h3>1. What is your favorite color?</h3>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="color1" name="color" value="red">
+                        <label for="color1">Red</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="color2" name="color" value="blue">
+                        <label for="color2">Blue</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="color3" name="color" value="green">
+                        <label for="color3">Green</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="color4" name="color" value="yellow">
+                        <label for="color4">Yellow</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Google Forms style radio buttons -->
+            <div class="question freebirdFormviewerComponentsQuestionRadioRoot" data-question-type="multiple_choice">
+                <h3>2. Which programming language do you prefer?</h3>
+                <div class="freebirdFormviewerComponentsQuestionRadioChoicesContainer">
+                    <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                        <input type="radio" id="lang1" name="language" value="javascript" role="radio">
+                        <label for="lang1">JavaScript</label>
+                    </div>
+                    <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                        <input type="radio" id="lang2" name="language" value="python" role="radio">
+                        <label for="lang2">Python</label>
+                    </div>
+                    <div class="freebirdFormviewerComponentsQuestionRadioChoice">
+                        <input type="radio" id="lang3" name="language" value="java" role="radio">
+                        <label for="lang3">Java</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ARIA-based radio buttons -->
+            <div class="question" data-question-type="multiple_choice">
+                <h3>3. What is your experience level?</h3>
+                <div role="radiogroup" aria-labelledby="experience-label">
+                    <div class="radio-option">
+                        <div role="radio" aria-checked="false" tabindex="0" data-value="beginner">Beginner</div>
+                    </div>
+                    <div class="radio-option">
+                        <div role="radio" aria-checked="false" tabindex="-1" data-value="intermediate">Intermediate</div>
+                    </div>
+                    <div class="radio-option">
+                        <div role="radio" aria-checked="false" tabindex="-1" data-value="advanced">Advanced</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <button onclick="testFormFiller()">🧪 Test Enhanced Form Filler</button>
+            <button onclick="testSpecificQuestion(0, 'Blue')">Test Q1: Blue</button>
+            <button onclick="testSpecificQuestion(1, 'Python')">Test Q2: Python</button>
+            <button onclick="testSpecificQuestion(2, 'Advanced')">Test Q3: Advanced</button>
+            <button onclick="clearSelections()">🔄 Clear All Selections</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- Load the form filler scripts -->
+    <script src="config.js"></script>
+    <script src="form-analyzer.js"></script>
+    <script src="form-filler-enhanced.js"></script>
+    
+    <script>
+        let testLog = [];
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            testLog.push(logMessage);
+            console.log(message);
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const logElement = document.getElementById('log');
+            logElement.innerHTML = testLog.join('\n');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = `Status: ${message}`;
+            statusElement.className = `status ${type}`;
+        }
+        
+        function clearLog() {
+            testLog = [];
+            updateLogDisplay();
+        }
+        
+        function clearSelections() {
+            // Clear regular radio buttons
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.checked = false;
+            });
+            
+            // Clear ARIA radio buttons
+            document.querySelectorAll('[role="radio"]').forEach(radio => {
+                radio.setAttribute('aria-checked', 'false');
+                radio.classList.remove('selected');
+            });
+            
+            // Clear visual selections
+            document.querySelectorAll('.radio-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            log('🔄 All selections cleared');
+            updateStatus('Selections cleared', 'info');
+        }
+        
+        async function testFormFiller() {
+            try {
+                updateStatus('Testing form filler...', 'info');
+                log('🧪 Starting enhanced form filler test...');
+                
+                // Initialize form analyzer and filler
+                const formAnalyzer = new FormAnalyzer();
+                const formFiller = new FormFillerEnhanced();
+                
+                // Test answers
+                const testAnswers = [
+                    { questionIndex: 0, answer: 'Blue' },
+                    { questionIndex: 1, answer: 'Python' },
+                    { questionIndex: 2, answer: 'Advanced' }
+                ];
+                
+                let successCount = 0;
+                let totalTests = testAnswers.length;
+                
+                for (const test of testAnswers) {
+                    log(`\n--- Testing Question ${test.questionIndex + 1} ---`);
+                    const success = await testSpecificQuestion(test.questionIndex, test.answer, false);
+                    if (success) successCount++;
+                }
+                
+                // Summary
+                log(`\n📊 Test Summary:`);
+                log(`✅ Successful: ${successCount}/${totalTests}`);
+                log(`❌ Failed: ${totalTests - successCount}/${totalTests}`);
+                
+                if (successCount === totalTests) {
+                    updateStatus('All tests passed!', 'success');
+                } else {
+                    updateStatus(`${successCount}/${totalTests} tests passed`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error during test: ${error.message}`);
+                updateStatus('Test failed with error', 'error');
+            }
+        }
+        
+        async function testSpecificQuestion(questionIndex, answer, updateStatusFlag = true) {
+            try {
+                log(`🎯 Testing question ${questionIndex + 1} with answer: "${answer}"`);
+                
+                // Get question element
+                const questions = document.querySelectorAll('.question');
+                if (questionIndex >= questions.length) {
+                    log(`❌ Question ${questionIndex + 1} not found`);
+                    return false;
+                }
+                
+                const questionElement = questions[questionIndex];
+                const questionType = questionElement.getAttribute('data-question-type') || 'multiple_choice';
+                
+                // Create question object like form analyzer would
+                const question = {
+                    type: questionType,
+                    text: questionElement.querySelector('h3').textContent,
+                    element: questionElement,
+                    inputElement: questionElement.querySelector('input[type="radio"], [role="radio"]') || questionElement
+                };
+                
+                log(`📝 Question: ${question.text}`);
+                log(`🔧 Question type: ${question.type}`);
+                
+                // Test with form filler
+                const formFiller = new FormFillerEnhanced();
+                const success = await formFiller.fillQuestion(question, answer);
+                
+                // Verify result
+                const isSelected = verifySelection(questionElement, answer);
+                
+                if (success && isSelected) {
+                    log(`✅ Question ${questionIndex + 1} filled successfully!`);
+                    if (updateStatusFlag) updateStatus(`Question ${questionIndex + 1} filled successfully`, 'success');
+                    return true;
+                } else {
+                    log(`❌ Question ${questionIndex + 1} filling failed`);
+                    log(`   Form filler result: ${success}`);
+                    log(`   Selection verified: ${isSelected}`);
+                    if (updateStatusFlag) updateStatus(`Question ${questionIndex + 1} filling failed`, 'error');
+                    return false;
+                }
+                
+            } catch (error) {
+                log(`❌ Error testing question ${questionIndex + 1}: ${error.message}`);
+                if (updateStatusFlag) updateStatus('Test error', 'error');
+                return false;
+            }
+        }
+        
+        function verifySelection(questionElement, expectedAnswer) {
+            log(`🔍 Verifying selection for answer: "${expectedAnswer}"`);
+            
+            // Check regular radio buttons
+            const radioButtons = questionElement.querySelectorAll('input[type="radio"]');
+            for (const radio of radioButtons) {
+                if (radio.checked) {
+                    const label = getRadioLabel(radio);
+                    log(`🎯 Found selected radio: "${label}"`);
+                    
+                    if (isAnswerMatch(label, expectedAnswer)) {
+                        log(`✅ Selection verified: "${label}" matches "${expectedAnswer}"`);
+                        highlightSelection(radio.closest('.radio-option'));
+                        return true;
+                    }
+                }
+            }
+            
+            // Check ARIA radio buttons
+            const ariaRadios = questionElement.querySelectorAll('[role="radio"]');
+            for (const radio of ariaRadios) {
+                if (radio.getAttribute('aria-checked') === 'true') {
+                    const label = radio.textContent.trim();
+                    log(`🎯 Found selected ARIA radio: "${label}"`);
+                    
+                    if (isAnswerMatch(label, expectedAnswer)) {
+                        log(`✅ Selection verified: "${label}" matches "${expectedAnswer}"`);
+                        highlightSelection(radio.closest('.radio-option'));
+                        return true;
+                    }
+                }
+            }
+            
+            log(`❌ No matching selection found for: "${expectedAnswer}"`);
+            return false;
+        }
+        
+        function getRadioLabel(radio) {
+            // Try different methods to get label
+            if (radio.labels && radio.labels[0]) {
+                return radio.labels[0].textContent.trim();
+            }
+            
+            const label = document.querySelector(`label[for="${radio.id}"]`);
+            if (label) {
+                return label.textContent.trim();
+            }
+            
+            const parentLabel = radio.closest('label');
+            if (parentLabel) {
+                return parentLabel.textContent.trim();
+            }
+            
+            const nextSibling = radio.nextElementSibling;
+            if (nextSibling && nextSibling.tagName === 'LABEL') {
+                return nextSibling.textContent.trim();
+            }
+            
+            return radio.value || '';
+        }
+        
+        function isAnswerMatch(optionText, answer) {
+            if (!optionText || !answer) return false;
+            
+            const option = optionText.toLowerCase().trim();
+            const ans = answer.toLowerCase().trim();
+            
+            return option === ans || option.includes(ans) || ans.includes(option);
+        }
+        
+        function highlightSelection(element) {
+            if (element) {
+                element.classList.add('selected');
+                setTimeout(() => {
+                    element.classList.remove('selected');
+                }, 2000);
+            }
+        }
+        
+        // Add event listeners for visual feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers for visual feedback
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    // Clear other selections in the same group
+                    document.querySelectorAll(`input[name="${this.name}"]`).forEach(r => {
+                        r.closest('.radio-option')?.classList.remove('selected');
+                    });
+                    
+                    // Highlight selected option
+                    this.closest('.radio-option')?.classList.add('selected');
+                });
+            });
+            
+            // ARIA radio button handlers
+            document.querySelectorAll('[role="radio"]').forEach(radio => {
+                radio.addEventListener('click', function() {
+                    // Clear other selections in the same group
+                    const group = this.closest('[role="radiogroup"]') || this.parentElement;
+                    group.querySelectorAll('[role="radio"]').forEach(r => {
+                        r.setAttribute('aria-checked', 'false');
+                        r.closest('.radio-option')?.classList.remove('selected');
+                    });
+                    
+                    // Select this option
+                    this.setAttribute('aria-checked', 'true');
+                    this.closest('.radio-option')?.classList.add('selected');
+                });
+            });
+            
+            log('🚀 Test page initialized');
+            updateStatus('Ready to test', 'info');
+        });
+    </script>
+</body>
+</html>

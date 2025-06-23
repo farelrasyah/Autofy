@@ -1,5 +1,5 @@
 /**
- * Form Filler untuk Autofy Extension
+ * Form Filler untuk Autofy Extension - Enhanced Multiple Choice Support
  * Mengisi jawaban ke dalam Google Form secara otomatis
  */
 class FormFiller {
@@ -7,6 +7,7 @@ class FormFiller {
     this.fillDelay = 500; // Delay antar pengisian (ms)
     this.typingSpeed = 50; // Kecepatan mengetik (ms per karakter)
   }
+
   /**
    * Mengisi jawaban untuk satu pertanyaan
    */
@@ -38,6 +39,7 @@ class FormFiller {
       
       console.log(`📝 Filling ${question.type} question with answer: "${answer}"`);
       
+      // Route ke method yang tepat berdasarkan tipe pertanyaan
       switch (question.type) {
         case 'multiple_choice':
           return await this.fillMultipleChoice(question, answer);
@@ -66,7 +68,8 @@ class FormFiller {
         
         default:
           console.warn(`❌ Unsupported question type: ${question.type}`);
-          return false;      }
+          return false;
+      }
     } catch (error) {
       console.error(`❌ Error filling question "${question.text?.substring(0, 50)}":`, error);
       console.error('Question details:', question);
@@ -77,31 +80,112 @@ class FormFiller {
   }
 
   /**
-   * Mengisi pertanyaan multiple choice (radio button)
+   * Mengisi pertanyaan multiple choice (radio button) - Enhanced
    */
   async fillMultipleChoice(question, answer) {
+    console.log(`🔘 Filling multiple choice: "${answer}"`);
     const container = question.element;
-    const options = container.querySelectorAll('input[type="radio"]');
     
-    // Cari opsi yang cocok dengan jawaban
-    for (const option of options) {
-      const label = this.getOptionLabel(option);
-      if (this.isAnswerMatch(label, answer)) {
-        await this.clickElement(option);
-        await this.delay(200);
-        return true;
+    // Enhanced selectors untuk radio buttons dan custom Google Forms elements
+    const radioSelectors = [
+      'input[type="radio"]',
+      '[role="radio"]',
+      '[data-value][role="radio"]',
+      '.quantumWizTogglePaperradioRoot input',
+      '.freebirdFormviewerComponentsQuestionRadioChoice input',
+      '.freebirdFormviewerComponentsQuestionRadioChoice [role="radio"]',
+      '[aria-checked]'
+    ];
+    
+    let options = [];
+    for (const selector of radioSelectors) {
+      options = container.querySelectorAll(selector);
+      if (options.length > 0) {
+        console.log(`✅ Found ${options.length} radio options with selector: ${selector}`);
+        break;
       }
     }
     
-    // Jika tidak ada yang cocok persis, cari yang paling mirip
-    const bestMatch = this.findBestMatch(question.options, answer);
-    if (bestMatch) {
-      for (const option of options) {
-        const label = this.getOptionLabel(option);
-        if (this.isAnswerMatch(label, bestMatch)) {
-          await this.clickElement(option);
-          await this.delay(200);
-          return true;
+    if (options.length === 0) {
+      console.warn('❌ No radio options found, trying alternative approach...');
+      return await this.fillMultipleChoiceAlternative(container, answer);
+    }
+    
+    // Try exact match first
+    for (const option of options) {
+      const label = this.getOptionLabel(option);
+      console.log(`🔍 Checking option: "${label}"`);
+      
+      if (this.isAnswerMatch(label, answer)) {
+        console.log(`✅ Exact match found: "${label}"`);
+        const success = await this.selectRadioOption(option);
+        if (success) return true;
+      }
+    }
+    
+    // Try partial match if no exact match
+    for (const option of options) {
+      const label = this.getOptionLabel(option);
+      if (this.isPartialMatch(label, answer)) {
+        console.log(`🎯 Partial match found: "${label}"`);
+        const success = await this.selectRadioOption(option);
+        if (success) return true;
+      }
+    }
+    
+    // If no match found, select first option as fallback
+    if (options.length > 0) {
+      console.log(`🔄 No match found, selecting first option as fallback`);
+      const success = await this.selectRadioOption(options[0]);
+      if (success) return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Alternative approach for multiple choice when standard selectors fail
+   */
+  async fillMultipleChoiceAlternative(container, answer) {
+    console.log('🔄 Trying alternative multiple choice approach...');
+    
+    // Look for clickable elements that might be custom radio buttons
+    const clickableSelectors = [
+      '[data-value]',
+      '.freebirdFormviewerComponentsQuestionRadioChoice',
+      '.quantumWizTogglePaperradioRoot',
+      '[role="button"]',
+      'div[data-params]'
+    ];
+    
+    for (const selector of clickableSelectors) {
+      const elements = container.querySelectorAll(selector);
+      console.log(`🔍 Found ${elements.length} elements with ${selector}`);
+      
+      for (const element of elements) {
+        const text = element.textContent?.trim() || element.getAttribute('data-value') || '';
+        console.log(`🔍 Checking clickable element: "${text}"`);
+        
+        if (this.isAnswerMatch(text, answer) || this.isPartialMatch(text, answer)) {
+          console.log(`✅ Match found in clickable element: "${text}"`);
+          
+          // Try clicking the element
+          try {
+            element.focus();
+            await this.delay(100);
+            element.click();
+            await this.delay(300);
+            
+            // Check if selection was successful by looking for visual indicators
+            if (element.getAttribute('aria-checked') === 'true' || 
+                element.classList.contains('selected') ||
+                element.classList.contains('checked')) {
+              console.log('✅ Selection successful');
+              return true;
+            }
+          } catch (error) {
+            console.warn('⚠️ Error clicking element:', error);
+          }
         }
       }
     }
@@ -110,11 +194,84 @@ class FormFiller {
   }
 
   /**
-   * Mengisi pertanyaan checkbox
+   * Enhanced radio option selection with proper event triggering
+   */
+  async selectRadioOption(option) {
+    try {
+      // Focus on the element first
+      option.focus();
+      await this.delay(100);
+      
+      // Check if already selected
+      if (option.checked || option.getAttribute('aria-checked') === 'true') {
+        console.log('🎯 Option already selected');
+        return true;
+      }
+      
+      // Try direct property setting for input elements
+      if (option.type === 'radio') {
+        option.checked = true;
+      }
+      
+      // Set aria-checked for ARIA elements
+      if (option.hasAttribute('aria-checked')) {
+        option.setAttribute('aria-checked', 'true');
+      }
+      
+      // Trigger all necessary events
+      const events = ['mousedown', 'mouseup', 'click', 'change', 'input'];
+      for (const eventType of events) {
+        const event = new Event(eventType, { bubbles: true, cancelable: true });
+        option.dispatchEvent(event);
+        await this.delay(50);
+      }
+      
+      // Also try clicking the parent label or container if it exists
+      const label = option.closest('label') || 
+                   option.parentElement.querySelector('label') ||
+                   document.querySelector(`label[for="${option.id}"]`) ||
+                   option.closest('.freebirdFormviewerComponentsQuestionRadioChoice');
+      
+      if (label && label !== option) {
+        console.log('🔗 Clicking associated label/container');
+        label.click();
+        await this.delay(100);
+      }
+      
+      // Verify selection
+      if (option.checked || option.getAttribute('aria-checked') === 'true') {
+        console.log('✅ Radio option successfully selected');
+        return true;
+      } else {
+        console.warn('⚠️ Radio option not selected after events');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ Error selecting radio option:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mengisi pertanyaan checkbox - Enhanced
    */
   async fillCheckbox(question, answer) {
+    console.log(`☑️ Filling checkbox: "${answer}"`);
     const container = question.element;
-    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    
+    const checkboxSelectors = [
+      'input[type="checkbox"]',
+      '[role="checkbox"]',
+      '.quantumWizTogglePapercheckboxRoot input',
+      '.freebirdFormviewerComponentsQuestionCheckboxChoice input'
+    ];
+    
+    let checkboxes = [];
+    for (const selector of checkboxSelectors) {
+      checkboxes = container.querySelectorAll(selector);
+      if (checkboxes.length > 0) break;
+    }
     
     // Jika answer adalah array, handle multiple selections
     const answers = Array.isArray(answer) ? answer : [answer];
@@ -123,10 +280,9 @@ class FormFiller {
     for (const ans of answers) {
       for (const checkbox of checkboxes) {
         const label = this.getOptionLabel(checkbox);
-        if (this.isAnswerMatch(label, ans)) {
+        if (this.isAnswerMatch(label, ans) || this.isPartialMatch(label, ans)) {
           if (!checkbox.checked) {
-            await this.clickElement(checkbox);
-            await this.delay(200);
+            await this.selectCheckboxOption(checkbox);
             filled = true;
           }
         }
@@ -137,42 +293,138 @@ class FormFiller {
   }
 
   /**
-   * Mengisi dropdown
+   * Select checkbox option with proper event handling
+   */
+  async selectCheckboxOption(checkbox) {
+    try {
+      checkbox.focus();
+      await this.delay(100);
+      
+      checkbox.checked = true;
+      
+      const events = ['mousedown', 'mouseup', 'click', 'change', 'input'];
+      for (const eventType of events) {
+        const event = new Event(eventType, { bubbles: true, cancelable: true });
+        checkbox.dispatchEvent(event);
+        await this.delay(50);
+      }
+      
+      const label = checkbox.closest('label') || 
+                   document.querySelector(`label[for="${checkbox.id}"]`);
+      if (label) {
+        label.click();
+        await this.delay(100);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error selecting checkbox:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mengisi dropdown - Enhanced untuk Google Forms
    */
   async fillDropdown(question, answer) {
+    console.log(`📋 Filling dropdown: "${answer}"`);
     const container = question.element;
+    
+    // Try standard HTML select first
     const select = container.querySelector('select');
     
     if (select) {
-      // Standard HTML select
+      console.log('🎯 Found standard HTML select');
       const options = select.querySelectorAll('option');
       for (const option of options) {
         if (this.isAnswerMatch(option.textContent, answer)) {
           select.value = option.value;
-          await this.triggerEvent(select, 'change');
-          await this.delay(200);
-          return true;
-        }
-      }
-    } else {
-      // Google Form custom dropdown
-      const dropdownButton = container.querySelector('[role="listbox"], .quantumWizMenuPaperselectDropDown');
-      if (dropdownButton) {
-        await this.clickElement(dropdownButton);
-        await this.delay(300);
-        
-        // Cari opsi di dropdown yang terbuka
-        const dropdownOptions = document.querySelectorAll('[role="option"], .quantumWizMenuPaperselectOption');
-        for (const option of dropdownOptions) {
-          if (this.isAnswerMatch(option.textContent, answer)) {
-            await this.clickElement(option);
-            await this.delay(200);
-            return true;
+          select.selectedIndex = option.index;
+          
+          // Trigger events
+          const events = ['change', 'input', 'blur'];
+          for (const eventType of events) {
+            const event = new Event(eventType, { bubbles: true });
+            select.dispatchEvent(event);
+            await this.delay(50);
           }
+          
+          console.log(`✅ Selected option: "${option.textContent}"`);
+          return true;
         }
       }
     }
     
+    // Google Forms custom dropdown
+    const dropdownSelectors = [
+      '[role="listbox"]',
+      '[data-value]',
+      '.quantumWizMenuPaperselectDropDown',
+      '.freebirdFormviewerComponentsQuestionSelectRoot',
+      '.exportSelect'
+    ];
+    
+    let dropdown = null;
+    for (const selector of dropdownSelectors) {
+      dropdown = container.querySelector(selector);
+      if (dropdown) {
+        console.log(`✅ Found custom dropdown with selector: ${selector}`);
+        break;
+      }
+    }
+    
+    if (dropdown) {
+      // Click to open dropdown
+      dropdown.click();
+      await this.delay(500);
+      
+      // Find dropdown options (they might appear outside the container)
+      const optionSelectors = [
+        '[role="option"]',
+        '.quantumWizMenuPaperselectOption',
+        '.freebirdFormviewerComponentsQuestionSelectOption',
+        '[data-value]'
+      ];
+      
+      let options = [];
+      for (const selector of optionSelectors) {
+        options = document.querySelectorAll(selector + ':not([style*="display: none"])');
+        if (options.length > 0) {
+          console.log(`✅ Found ${options.length} dropdown options`);
+          break;
+        }
+      }
+      
+      // Try to select matching option
+      for (const option of options) {
+        const optionText = option.textContent?.trim() || option.getAttribute('data-value') || '';
+        console.log(`🔍 Checking dropdown option: "${optionText}"`);
+        
+        if (this.isAnswerMatch(optionText, answer)) {
+          console.log(`✅ Match found: "${optionText}"`);
+          option.click();
+          await this.delay(300);
+          return true;
+        }
+      }
+      
+      // If no exact match, try partial match
+      for (const option of options) {
+        const optionText = option.textContent?.trim() || '';
+        if (this.isPartialMatch(optionText, answer)) {
+          console.log(`🎯 Partial match found: "${optionText}"`);
+          option.click();
+          await this.delay(300);
+          return true;
+        }
+      }
+      
+      // Close dropdown if no match found
+      document.body.click();
+      await this.delay(200);
+    }
+    
+    console.warn('❌ No dropdown options found or matched');
     return false;
   }
 
@@ -181,154 +433,128 @@ class FormFiller {
    */
   async fillLinearScale(question, answer) {
     const container = question.element;
-    const scaleButtons = container.querySelectorAll('[data-value], input[type="radio"]');
+    const value = parseInt(answer);
     
-    // Coba cocokkan dengan nilai numerik
-    const numericAnswer = parseInt(answer);
-    if (!isNaN(numericAnswer)) {
-      for (const button of scaleButtons) {
-        const value = button.getAttribute('data-value') || button.value;
-        if (parseInt(value) === numericAnswer) {
-          await this.clickElement(button);
-          await this.delay(200);
-          return true;
-        }
-      }
+    if (isNaN(value)) {
+      console.warn('❌ Linear scale answer must be a number');
+      return false;
     }
     
-    // Fallback: cari berdasarkan label
-    for (const button of scaleButtons) {
-      const label = this.getOptionLabel(button);
-      if (this.isAnswerMatch(label, answer)) {
-        await this.clickElement(button);
-        await this.delay(200);
+    // Cari radio buttons untuk scale
+    const options = container.querySelectorAll('input[type="radio"]');
+    
+    for (const option of options) {
+      if (parseInt(option.value) === value) {
+        await this.selectRadioOption(option);
         return true;
       }
     }
     
     return false;
   }
+
   /**
-   * Mengisi text input (short answer, paragraph, email, url, number)
+   * Mengisi text input (short answer, paragraph, etc)
    */
   async fillTextInput(question, answer) {
-    console.log('📝 fillTextInput called for:', question.type);
+    const inputElement = question.inputElement;
     
-    let input = question.inputElement;
-    if (!input) {
-      console.warn('❌ No input element found, trying to find alternative...');
-      // Try to find input element again
-      const container = question.element;
-      input = container.querySelector('input[type="text"], input[type="email"], input[type="url"], input[type="number"], textarea, .quantumWizTextinputPaperinputInput, [role="textbox"]');
-      
-      if (!input) {
-        console.error('❌ Still no input element found');
-        return false;
-      }
-      console.log('✅ Found alternative input element');
-    }
-
-    try {
-      console.log('📝 Filling input with answer:', answer.substring(0, 50));
-      
-      // Focus pada input
-      await this.focusElement(input);
-      await this.delay(100);
-
-      // Clear existing value
-      await this.clearInput(input);
-      await this.delay(100);
-
-      // Type answer with realistic speed
-      if (question.type === 'paragraph') {
-        await this.typeText(input, answer, this.typingSpeed);
-      } else {
-        await this.typeText(input, answer, this.typingSpeed / 2); // Faster for short inputs
-      }
-
-      // Trigger events to ensure Google Form recognizes the input
-      await this.triggerEvent(input, 'input');
-      await this.triggerEvent(input, 'change');
-      await this.triggerEvent(input, 'blur');
-      await this.delay(200);
-
-      // Verify the value was set
-      const currentValue = input.value || input.textContent || '';
-      console.log('📝 Current input value after filling:', currentValue.substring(0, 50));
-      
-      if (currentValue.trim() === '') {
-        console.warn('⚠️ Input appears empty after filling, trying direct value assignment...');
-        input.value = answer;
-        await this.triggerEvent(input, 'input');
-        await this.triggerEvent(input, 'change');
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error filling text input:', error);
-      return false;
-    }
+    // Focus pada input
+    await this.focusElement(inputElement);
+    
+    // Clear existing content
+    await this.clearInput(inputElement);
+    
+    // Type the answer
+    await this.typeText(inputElement, answer);
+    
+    // Trigger blur event
+    inputElement.blur();
+    
+    return true;
   }
 
   /**
-   * Mengisi input tanggal
+   * Mengisi date input
    */
   async fillDate(question, answer) {
-    const input = question.inputElement;
-    if (!input) return false;
-
-    // Convert answer to date format if needed
+    const inputElement = question.inputElement;
     const dateValue = this.parseDate(answer);
-    if (!dateValue) return false;
-
-    await this.focusElement(input);
-    await this.delay(100);
-
-    input.value = dateValue;
-    await this.triggerEvent(input, 'input');
-    await this.triggerEvent(input, 'change');
-    await this.delay(200);
-
+    
+    if (!dateValue) {
+      console.warn('❌ Invalid date format');
+      return false;
+    }
+    
+    await this.focusElement(inputElement);
+    await this.clearInput(inputElement);
+    
+    inputElement.value = dateValue;
+    await this.triggerEvent(inputElement, 'input');
+    await this.triggerEvent(inputElement, 'change');
+    
     return true;
   }
 
   /**
-   * Mengisi input waktu
+   * Mengisi time input
    */
   async fillTime(question, answer) {
-    const input = question.inputElement;
-    if (!input) return false;
-
-    // Convert answer to time format if needed
+    const inputElement = question.inputElement;
     const timeValue = this.parseTime(answer);
-    if (!timeValue) return false;
-
-    await this.focusElement(input);
-    await this.delay(100);
-
-    input.value = timeValue;
-    await this.triggerEvent(input, 'input');
-    await this.triggerEvent(input, 'change');
-    await this.delay(200);
-
+    
+    if (!timeValue) {
+      console.warn('❌ Invalid time format');
+      return false;
+    }
+    
+    await this.focusElement(inputElement);
+    await this.clearInput(inputElement);
+    
+    inputElement.value = timeValue;
+    await this.triggerEvent(inputElement, 'input');
+    await this.triggerEvent(inputElement, 'change');
+    
     return true;
   }
 
   /**
-   * Helper: Mendapatkan label dari option element
+   * Helper: Get label text for an option
    */
   getOptionLabel(option) {
-    // Cari label yang terkait
-    const label = option.closest('label') || 
-                 option.parentElement?.querySelector('span[dir="auto"]') ||
-                 option.nextElementSibling?.querySelector('span') ||
-                 option.parentElement?.textContent;
+    // Try multiple approaches to get the label text
+    let label = '';
     
-    return typeof label === 'string' ? label.trim() : label?.textContent?.trim() || '';
+    // 1. Check for associated label element
+    const labelElement = option.closest('label') || 
+                        document.querySelector(`label[for="${option.id}"]`) ||
+                        option.parentElement.querySelector('label');
+    
+    if (labelElement) {
+      label = labelElement.textContent?.trim();
+    }
+    
+    // 2. Check parent element text
+    if (!label && option.parentElement) {
+      label = option.parentElement.textContent?.trim();
+    }
+    
+    // 3. Check data attributes
+    if (!label) {
+      label = option.getAttribute('data-value') || 
+              option.getAttribute('aria-label') || '';
+    }
+    
+    // 4. Check next sibling text
+    if (!label && option.nextElementSibling) {
+      label = option.nextElementSibling.textContent?.trim();
+    }
+    
+    return label || '';
   }
 
   /**
-   * Helper: Mengecek apakah jawaban cocok dengan opsi
+   * Helper: Check if option text matches answer
    */
   isAnswerMatch(optionText, answer) {
     if (!optionText || !answer) return false;
@@ -336,254 +562,117 @@ class FormFiller {
     const option = optionText.toLowerCase().trim();
     const ans = answer.toLowerCase().trim();
     
-    // Exact match
-    if (option === ans) return true;
-    
-    // Contains match
-    if (option.includes(ans) || ans.includes(option)) return true;
-    
-    // Similarity check (simple)
-    const similarity = this.calculateSimilarity(option, ans);
-    return similarity > 0.8;
+    return option === ans || 
+           option.includes(ans) || 
+           ans.includes(option);
   }
 
   /**
-   * Helper: Mencari opsi yang paling cocok
+   * Helper: Check if text partially matches the answer
    */
-  findBestMatch(options, answer) {
-    if (!options || options.length === 0 || !answer) return null;
+  isPartialMatch(optionText, answer) {
+    if (!optionText || !answer) return false;
     
-    let bestMatch = null;
-    let bestScore = 0;
+    const option = optionText.toLowerCase().trim();
+    const ans = answer.toLowerCase().trim();
     
-    for (const option of options) {
-      const score = this.calculateSimilarity(option.toLowerCase(), answer.toLowerCase());
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = option;
-      }
-    }
+    // More flexible matching
+    const words1 = option.split(/\s+/);
+    const words2 = ans.split(/\s+/);
     
-    return bestScore > 0.6 ? bestMatch : null;
-  }
-
-  /**
-   * Helper: Menghitung similarity antara dua string
-   */
-  calculateSimilarity(str1, str2) {
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
-    
-    if (longer.length === 0) return 1.0;
-    
-    const editDistance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
-  }
-
-  /**
-   * Helper: Menghitung Levenshtein distance
-   */
-  levenshteinDistance(str1, str2) {
-    const matrix = [];
-    
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
-    }
-    
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
-    }
-    
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
+    // Check if any words match
+    for (const word1 of words1) {
+      for (const word2 of words2) {
+        if (word1.length > 2 && word2.length > 2 && 
+            (word1.includes(word2) || word2.includes(word1))) {
+          return true;
         }
       }
     }
     
-    return matrix[str2.length][str1.length];
+    return false;
   }
 
   /**
-   * Helper: Parse tanggal dari string
+   * Helper: Parse date string to YYYY-MM-DD format
    */
   parseDate(dateStr) {
-    if (!dateStr) return null;
-    
-    // Try various date formats
-    const formats = [
-      /(\d{4})-(\d{2})-(\d{2})/, // YYYY-MM-DD
-      /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
-      /(\d{2})-(\d{2})-(\d{4})/, // DD-MM-YYYY
-    ];
-    
-    for (const format of formats) {
-      const match = dateStr.match(format);
-      if (match) {
-        const [, part1, part2, part3] = match;
-        // Assume YYYY-MM-DD format for return value
-        if (part1.length === 4) {
-          return `${part1}-${part2}-${part3}`;
-        } else {
-          return `${part3}-${part2}-${part1}`;
-        }
-      }
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return null;
+      
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      return null;
     }
-    
-    return null;
   }
 
   /**
-   * Helper: Parse waktu dari string
+   * Helper: Parse time string to HH:MM format
    */
   parseTime(timeStr) {
-    if (!timeStr) return null;
-    
-    const match = timeStr.match(/(\d{1,2}):(\d{2})/);
-    if (match) {
-      const [, hours, minutes] = match;
-      return `${hours.padStart(2, '0')}:${minutes}`;
+    try {
+      const timeMatch = timeStr.match(/(\d{1,2}):?(\d{2})?/);
+      if (!timeMatch) return null;
+      
+      const hours = timeMatch[1].padStart(2, '0');
+      const minutes = (timeMatch[2] || '00').padStart(2, '0');
+      
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      return null;
     }
-    
-    return null;
   }
 
   /**
-   * Helper: Click element dengan simulasi human-like
-   */
-  async clickElement(element) {
-    await this.scrollToElement(element);
-    await this.delay(100);
-    
-    // Focus first
-    element.focus();
-    await this.delay(50);
-    
-    // Create and dispatch click events
-    const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-    const mouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true });
-    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
-    
-    element.dispatchEvent(mouseDown);
-    await this.delay(30);
-    element.dispatchEvent(mouseUp);
-    await this.delay(30);
-    element.dispatchEvent(click);
-  }
-  /**
-   * Helper: Focus element
+   * Helper: Focus on element
    */
   async focusElement(element) {
-    try {
-      await this.scrollToElement(element);
-      
-      // Multiple ways to focus element
-      if (element.focus) {
-        element.focus();
-      }
-      
-      // Click on element to ensure focus
-      await this.clickElement(element);
-      
-      await this.triggerEvent(element, 'focus');
-      console.log('📝 Element focused successfully');
-    } catch (error) {
-      console.warn('⚠️ Error focusing element:', error);
-    }
+    element.focus();
+    await this.delay(100);
   }
 
   /**
-   * Helper: Clear input field
+   * Helper: Clear input element
    */
   async clearInput(element) {
-    try {
-      // Multiple methods to clear input
-      element.value = '';
-      
-      if (element.textContent !== undefined) {
-        element.textContent = '';
-      }
-      
-      // Simulate selection and deletion
-      element.focus();
-      element.select();
-      
-      // Simulate Ctrl+A and Delete
-      await this.triggerEvent(element, 'keydown', { key: 'a', ctrlKey: true });
-      await this.delay(10);
-      await this.triggerEvent(element, 'keydown', { key: 'Delete' });
-      await this.triggerEvent(element, 'input');
-      await this.delay(10);
-      
-      console.log('📝 Input cleared successfully');
-    } catch (error) {
-      console.warn('⚠️ Error clearing input:', error);
-    }
+    element.value = '';
+    element.textContent = '';
+    
+    // Select all and delete
+    element.select();
+    document.execCommand('selectAll');
+    document.execCommand('delete');
+    
+    await this.triggerEvent(element, 'input');
   }
 
   /**
-   * Helper: Type text dengan kecepatan realistis
+   * Helper: Type text with realistic timing
    */
-  async typeText(element, text, speed = 50) {
-    try {
-      console.log(`📝 Typing text: "${text.substring(0, 50)}..." with speed ${speed}ms`);
-      
-      // Method 1: Character by character typing
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        
-        // Update value gradually
-        element.value = element.value + char;
-        
-        // Trigger events
-        await this.triggerEvent(element, 'keydown', { key: char });
-        await this.triggerEvent(element, 'keypress', { key: char });
-        await this.triggerEvent(element, 'input');
-        await this.triggerEvent(element, 'keyup', { key: char });
-        
-        await this.delay(speed + Math.random() * 20); // Add some randomness
-      }
-      
-      // Final events
-      await this.triggerEvent(element, 'change');
-      await this.triggerEvent(element, 'blur');
-      
-      console.log('📝 Text typed successfully');
-    } catch (error) {
-      console.warn('⚠️ Error typing text, trying direct assignment:', error);
-      
-      // Fallback: Direct assignment
-      element.value = text;
+  async typeText(element, text, speed = null) {
+    speed = speed || this.typingSpeed;
+    
+    for (const char of text) {
+      element.value += char;
       await this.triggerEvent(element, 'input');
-      await this.triggerEvent(element, 'change');
+      await this.delay(speed);
     }
+    
+    await this.triggerEvent(element, 'change');
   }
 
   /**
-   * Helper: Scroll ke element
-   */
-  async scrollToElement(element) {
-    element.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'center',
-      inline: 'center'
-    });
-    await this.delay(200);
-  }
-
-  /**
-   * Helper: Trigger event
+   * Helper: Trigger event on element
    */
   async triggerEvent(element, eventType, options = {}) {
-    const event = new Event(eventType, { bubbles: true, cancelable: true, ...options });
+    const event = new Event(eventType, { 
+      bubbles: true, 
+      cancelable: true,
+      ...options 
+    });
     element.dispatchEvent(event);
+    await this.delay(50);
   }
 
   /**
@@ -594,29 +683,18 @@ class FormFiller {
   }
 
   /**
-   * Mengatur kecepatan pengisian
+   * Set filling speed
    */
   setFillSpeed(speed) {
-    // speed: 'fast', 'normal', 'slow'
-    switch (speed) {
-      case 'fast':
-        this.fillDelay = 200;
-        this.typingSpeed = 20;
-        break;
-      case 'slow':
-        this.fillDelay = 1000;
-        this.typingSpeed = 100;
-        break;
-      default: // normal
-        this.fillDelay = 500;
-        this.typingSpeed = 50;
+    const speeds = {
+      slow: { fillDelay: 1000, typingSpeed: 100 },
+      normal: { fillDelay: 500, typingSpeed: 50 },
+      fast: { fillDelay: 200, typingSpeed: 20 }
+    };
+    
+    if (speeds[speed]) {
+      this.fillDelay = speeds[speed].fillDelay;
+      this.typingSpeed = speeds[speed].typingSpeed;
     }
   }
-}
-
-// Export untuk digunakan di file lain
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = FormFiller;
-} else {
-  window.FormFiller = FormFiller;
 }

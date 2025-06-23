@@ -16,11 +16,10 @@ async function initializeAutofy() {
     console.log('🚀 Initializing Autofy...');
     console.log('📍 URL:', window.location.href);
     console.log('📍 Is Google Form:', isGoogleFormPage());
-    
-    // Initialize komponen-komponen
+      // Initialize komponen-komponen
     configManager = new ConfigManager();
     formAnalyzer = new FormAnalyzer();
-    formFiller = new FormFiller();
+    formFiller = new FormFillerEnhanced(); // Use enhanced form filler
       // Load konfigurasi
     const config = await configManager.getConfig();
     console.log('⚙️ Config loaded:', !!config);
@@ -69,17 +68,23 @@ async function initializeAutofy() {
     if (isGoogleFormPage()) {
       setupAutofyInterface();
       console.log('✅ Autofy initialized successfully');
-      
-      // Send ready signal to extension
-      chrome.runtime.sendMessage({ action: 'contentScriptReady', url: window.location.href });
+        // Send ready signal to extension
+      try {
+        chrome.runtime.sendMessage({ action: 'contentScriptReady', url: window.location.href });
+      } catch (messageError) {
+        console.warn('⚠️ Could not send ready message to extension:', messageError);
+      }
     } else {
       console.log('ℹ️ Not a Google Form page, skipping initialization');
     }
     
   } catch (error) {
-    console.error('❌ Error initializing Autofy:', error);
-    // Send error signal to extension
-    chrome.runtime.sendMessage({ action: 'contentScriptError', error: error.message });
+    console.error('❌ Error initializing Autofy:', error);    // Send error signal to extension
+    try {
+      chrome.runtime.sendMessage({ action: 'contentScriptError', error: error.message });
+    } catch (messageError) {
+      console.warn('⚠️ Could not send error message to extension:', messageError);
+    }
   }
 }
 
@@ -472,10 +477,20 @@ async function fillAllQuestions(onlyUnanswered = false) {
     setTimeout(() => {
       analyzeForm();
     }, 1000);
-    
-  } catch (error) {
+      } catch (error) {
     console.error('Error filling questions:', error);
-    setStatus('❌ Terjadi kesalahan saat mengisi form', 'error');
+    
+    // Handle specific network errors
+    const networkError = handleNetworkError(error, 'form filling');
+    
+    if (networkError.type === 'BLOCKED_BY_CLIENT') {
+      setStatus('🚫 Ad blocker interfering - check notification', 'error');
+    } else if (networkError.type === 'NETWORK_ERROR') {
+      setStatus('🌐 Network error - check connection', 'error');
+    } else {
+      setStatus('❌ Terjadi kesalahan saat mengisi form', 'error');
+    }
+    
     hideProgress();
   } finally {
     isProcessing = false;
@@ -691,3 +706,108 @@ window.addEventListener('beforeunload', () => {
 });
 
 console.log('🤖 Autofy content script loaded');
+
+/**
+ * Handle network errors and blocked requests
+ */
+function handleNetworkError(error, context = '') {
+  if (error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+    console.warn('🚫 Request blocked by ad blocker or privacy extension');
+    console.warn('💡 This is likely caused by uBlock Origin, AdBlock Plus, or similar extensions');
+    console.warn('🔧 To fix: Disable ad blocker for docs.google.com or add to whitelist');
+    
+    // Show user-friendly message
+    showUserNotification(
+      'Ad Blocker Detected', 
+      'Your ad blocker is interfering with form filling. Please whitelist docs.google.com', 
+      'warning'
+    );
+    
+    return {
+      type: 'BLOCKED_BY_CLIENT',
+      message: 'Request blocked by ad blocker or privacy extension',
+      solution: 'Disable ad blocker for Google Forms or add to whitelist'
+    };
+  } else if (error.message.includes('ERR_NETWORK')) {
+    console.warn('🌐 Network connectivity issue');
+    return {
+      type: 'NETWORK_ERROR', 
+      message: 'Network connectivity issue',
+      solution: 'Check internet connection'
+    };
+  } else if (error.message.includes('CORS')) {
+    console.warn('🔒 CORS policy blocking request');
+    return {
+      type: 'CORS_ERROR',
+      message: 'Cross-origin request blocked',
+      solution: 'This is a browser security restriction'
+    };
+  }
+  
+  return {
+    type: 'UNKNOWN_ERROR',
+    message: error.message,
+    solution: 'Check console for more details'
+  };
+}
+
+/**
+ * Show user notification for network issues
+ */
+function showUserNotification(title, message, type = 'info') {
+  // Create notification element if it doesn't exist
+  let notification = document.getElementById('autofy-notification');
+  if (!notification) {
+    notification = document.createElement('div');
+    notification.id = 'autofy-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #fff;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      max-width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    `;
+    document.body.appendChild(notification);
+  }
+  
+  // Set notification style based on type
+  const colors = {
+    info: '#007bff',
+    warning: '#ff9800', 
+    error: '#f44336',
+    success: '#4caf50'
+  };
+  
+  notification.style.borderColor = colors[type] || colors.info;
+  notification.innerHTML = `
+    <div style="font-weight: bold; color: ${colors[type]}; margin-bottom: 8px;">
+      ${title}
+    </div>
+    <div style="color: #333; font-size: 14px; line-height: 1.4;">
+      ${message}
+    </div>
+    <button onclick="this.parentElement.remove()" style="
+      background: none; 
+      border: none; 
+      position: absolute; 
+      top: 5px; 
+      right: 8px; 
+      cursor: pointer;
+      font-size: 18px;
+      color: #999;
+    ">×</button>
+  `;
+  
+  // Auto-hide after 10 seconds
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 10000);
+}
