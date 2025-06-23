@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autofy API Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.testing {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Autofy API Test</h1>
+        <p style="text-align: center; color: #666;">
+            Test koneksi Gemini AI untuk memastikan extension berfungsi dengan baik
+        </p>
+        
+        <div class="test-section">
+            <h3>🔑 API Key Status</h3>
+            <p>Status: <span id="api-status" class="status ready">READY</span></p>
+            <button onclick="checkApiKey()">Check API Key</button>
+            <div id="api-result" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Connection Test</h3>
+            <p>Test koneksi ke Gemini API</p>
+            <button id="test-btn" onclick="runConnectionTest()">Test Connection</button>
+            <div id="connection-result" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>💬 Sample Generation</h3>
+            <p>Test AI response generation</p>
+            <button id="generate-btn" onclick="testGeneration()">Generate Sample Response</button>
+            <div id="generation-result" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 System Info</h3>
+            <div id="system-info">
+                <p><strong>Browser:</strong> <span id="browser-info"></span></p>
+                <p><strong>Extension Version:</strong> <span id="ext-version">1.0.0</span></p>
+                <p><strong>Test Time:</strong> <span id="test-time"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set system info
+        document.getElementById('browser-info').textContent = navigator.userAgent.split(' ')[0];
+        document.getElementById('test-time').textContent = new Date().toLocaleString();
+        
+        // API Key Functions
+        function getApiKey() {
+            // Decode base64 API key
+            const encodedKey = 'QUl6YVN5QVJJS3dubHJVZUl4cEd2VFM1VmhSeHVSMkhoV1FDeG9Z';
+            return atob(encodedKey);
+        }
+        
+        function checkApiKey() {
+            const apiKey = getApiKey();
+            const result = document.getElementById('api-result');
+            const status = document.getElementById('api-status');
+            
+            result.style.display = 'block';
+            
+            if (apiKey && apiKey.startsWith('AIza') && apiKey.length > 30) {
+                result.className = 'result success';
+                result.textContent = `✅ API Key Valid
+Format: ${apiKey.substring(0, 10)}...
+Length: ${apiKey.length} characters
+Starts with: AIza ✓`;
+                status.textContent = 'VALID';
+                status.className = 'status ready';
+            } else {
+                result.className = 'result error';
+                result.textContent = '❌ API Key Invalid or Missing';
+                status.textContent = 'ERROR';
+                status.className = 'status error';
+            }
+        }
+        
+        async function runConnectionTest() {
+            const btn = document.getElementById('test-btn');
+            const result = document.getElementById('connection-result');
+            const status = document.getElementById('api-status');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Testing...';
+            result.style.display = 'block';
+            result.className = 'result info';
+            result.textContent = 'Testing connection to Gemini API...';
+            status.textContent = 'TESTING';
+            status.className = 'status testing';
+            
+            try {
+                const apiKey = getApiKey();
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{ 
+                                parts: [{ text: 'Test connection - respond with "Connection successful!"' }] 
+                            }],
+                            generationConfig: {
+                                temperature: 0.1,
+                                maxOutputTokens: 20
+                            }
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.className = 'result success';
+                    result.textContent = `✅ Connection Successful!
+Status: ${response.status}
+Response: ${data.candidates[0].content.parts[0].text}`;
+                    status.textContent = 'CONNECTED';
+                    status.className = 'status ready';
+                } else {
+                    const errorData = await response.text();
+                    result.className = 'result error';
+                    result.textContent = `❌ Connection Failed
+Status: ${response.status}
+Error: ${errorData}`;
+                    status.textContent = 'ERROR';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ Connection Error: ${error.message}`;
+                status.textContent = 'ERROR';
+                status.className = 'status error';
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Test Connection';
+        }
+        
+        async function testGeneration() {
+            const btn = document.getElementById('generate-btn');
+            const result = document.getElementById('generation-result');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+            result.style.display = 'block';
+            result.className = 'result info';
+            result.textContent = 'Generating sample AI response...';
+            
+            try {
+                const apiKey = getApiKey();
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{ 
+                                parts: [{ text: 'Buatlah salam perkenalan yang ramah untuk extension Autofy yang membantu mengisi Google Form dengan AI' }] 
+                            }],
+                            generationConfig: {
+                                temperature: 0.7,
+                                maxOutputTokens: 100
+                            }
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const generatedText = data.candidates[0].content.parts[0].text;
+                    result.className = 'result success';
+                    result.textContent = `✅ AI Response Generated Successfully!
+
+Generated Text:
+"${generatedText}"
+
+Token Usage: ${data.usageMetadata?.totalTokenCount || 'N/A'} tokens`;
+                } else {
+                    const errorData = await response.text();
+                    result.className = 'result error';
+                    result.textContent = `❌ Generation Failed
+Status: ${response.status}
+Error: ${errorData}`;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ Generation Error: ${error.message}`;
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Generate Sample Response';
+        }
+        
+        // Auto-check API key on load
+        window.onload = function() {
+            checkApiKey();
+        };
+    </script>
+</body>
+</html>

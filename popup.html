@@ -235,6 +235,23 @@
       animation: pulse 1s infinite;
     }
 
+    .status-text {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-text.ready {
+      color: #28a745;
+    }
+
+    .status-text.error {
+      color: #dc3545;
+    }
+
+    .status-text.testing {
+      color: #ffc107;
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
@@ -290,6 +307,32 @@
       padding: 15px;
       border-top: 1px solid #e9ecef;
     }
+
+    .api-status-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 12px;
+      padding: 16px;
+      border: 2px solid #28a745;
+    }
+
+    .status-indicator-row {
+      margin-bottom: 12px;
+    }
+
+    .api-info {
+      font-size: 13px;
+      color: #495057;
+      line-height: 1.4;
+    }
+
+    .api-info p {
+      margin-bottom: 6px;
+    }
+
+    .api-note {
+      color: #28a745 !important;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -303,9 +346,7 @@
     </div>
 
     <div class="content">
-      <div id="status-message" class="status-message"></div>
-
-      <!-- Quick Actions -->
+      <div id="status-message" class="status-message"></div>      <!-- Quick Actions -->
       <div class="quick-actions">
         <h4>🚀 Aksi Cepat</h4>
         <button class="quick-btn" id="open-form-btn">
@@ -314,7 +355,11 @@
         </button>
         <button class="quick-btn" id="test-connection-btn">
           <span>🔗</span>
-          Test Koneksi Gemini
+          Test Koneksi AI
+        </button>
+        <button class="quick-btn" id="test-api-btn">
+          <span>🧪</span>
+          Test API Detail
         </button>
         <button class="quick-btn" id="view-tutorial-btn">
           <span>📚</span>
@@ -322,22 +367,22 @@
         </button>
       </div>
 
-      <!-- API Configuration -->
+      <!-- API Status -->
       <div class="section">
-        <h3>🔑 Konfigurasi API</h3>
+        <h3>🤖 Status AI</h3>
         
-        <div class="form-group">
-          <label for="api-key">Gemini API Key</label>
-          <div class="api-key-container">
-            <input type="password" id="api-key" placeholder="Masukkan API key Gemini Anda">
-            <button type="button" class="api-key-toggle" id="toggle-api-key">👁️</button>
-          </div>
-          <div class="connection-status" id="connection-status">
-            <div class="status-indicator disconnected"></div>
-            <span>Belum terhubung</span>
-          </div>
-          <div class="help-text">
-            Dapatkan API key gratis di <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+        <div class="api-status-card">
+          <div class="status-indicator-row">
+            <div class="connection-status" id="connection-status">
+              <div class="status-indicator connected"></div>
+              <span>AI Ready - Powered by Gemini</span>
+            </div>
+          </div>          <div class="api-info">
+            <p>Extension menggunakan AI terintegrasi untuk mengisi form otomatis.</p>
+            <p class="api-note">✨ Tidak perlu konfigurasi tambahan</p>
+            <div id="content-script-status" class="status-text" style="margin-top: 8px; font-size: 12px; color: #666;">
+              Content Script: Checking...
+            </div>
           </div>
         </div>
       </div>

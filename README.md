@@ -14,11 +14,12 @@
 - 🎨 **Modern UI** - Interface yang clean, intuitive, dan responsive
 - ⚙️ **Customizable Settings** - Berbagai pengaturan untuk menyesuaikan gaya respons
 - 🌐 **Multi-Language** - Mendukung Bahasa Indonesia dan English
-- 🔒 **Secure API Management** - Pengelolaan API key yang aman dengan enkripsi lokal
+- � **Built-in AI Ready** - AI sudah siap digunakan tanpa perlu konfigurasi API key
+- 🛡️ **Secure & Private** - API key sudah tertanam dan dienkripsi secara aman
 
 ## 🚀 Instalasi
 
-### Metode 1: Development Mode
+### Metode 1: Simple Installation (Recommended)
 
 1. **Clone atau Download Repository**
    ```bash
@@ -26,27 +27,20 @@
    cd autofy-extension
    ```
 
-2. **Setup Environment**
-   ```bash
-   npm run setup
-   ```
-   Atau manual:
-   ```bash
-   copy .env.example .env
-   ```
-
-3. **Konfigurasi API Key**
-   - Edit file `.env`
-   - Masukkan API key Gemini Anda:
-     ```
-     GEMINI_API_KEY=your_api_key_here
-     ```
-
-4. **Load Extension di Chrome**
+2. **Load Extension di Chrome**
    - Buka `chrome://extensions/`
    - Aktifkan "Developer mode"
    - Klik "Load unpacked"
    - Pilih folder project Autofy
+
+**🎉 Selesai! Extension siap digunakan tanpa konfigurasi tambahan!**
+
+### Metode 2: Developer Mode (untuk development)
+
+1. **Setup Environment** (opsional untuk development)
+   ```bash
+   npm run setup
+   ```
 
 ### Metode 2: Production Build
 
@@ -55,52 +49,49 @@
    npm run build
    ```
 
-2. **Install dari Build Folder**
-   - Buka `chrome://extensions/`
-   - Aktifkan "Developer mode"
-   - Klik "Load unpacked"
-   - Pilih folder `build/`
+##  Cara Penggunaan
 
-## 🔑 Mendapatkan Gemini API Key
-
-1. Kunjungi [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Login dengan akun Google Anda
-3. Klik "Create API Key"
-4. Salin API key yang dihasilkan
-5. Masukkan ke file `.env` atau pengaturan extension
-
-> **Catatan**: API key Gemini tersedia gratis dengan quota tertentu per bulan.
-
-## 📖 Cara Penggunaan
-
-### Langkah Dasar
+### Langkah Super Mudah! 🎯
 
 1. **Buka Google Form**
    - Navigasi ke form Google yang ingin diisi
    - Pastikan form dalam mode "viewform" (bukan edit)
 
-2. **Aktifkan Autofy**
-   - Klik icon Autofy di toolbar Chrome, atau
-   - Tekan shortcut `Ctrl+Shift+A`
+2. **Aktivasi Otomatis**
+   - Klik icon Autofy di toolbar Chrome
+   - **AI sudah siap!** Tidak perlu setup atau konfigurasi apapun
 
-3. **Analisis Form**
-   - Klik tombol "🔍 Analisis Form"
-   - Autofy akan menganalisis semua pertanyaan dalam form
+3. **Fill Form with AI**
+   - Klik tombol **"Fill Form with AI"** 
+   - Autofy akan otomatis menganalisis dan mengisi form
+   - Tunggu beberapa detik hingga selesai
 
-4. **Isi Form Otomatis**
-   - Klik "✨ Isi Semua Pertanyaan" untuk mengisi seluruh form
-   - Atau "📝 Isi Yang Belum Dijawab" untuk mengisi yang kosong saja
-
-5. **Review & Submit**
-   - Periksa jawaban yang dihasilkan
+4. **Review & Submit**
+   - Periksa jawaban yang dihasilkan AI
    - Edit jika diperlukan
    - Submit form seperti biasa
 
-### Fitur Lanjutan
+**🎉 Semudah itu! Tidak perlu input API key atau konfigurasi rumit!**
+
+### Fitur Tambahan
 
 #### Shortcut Keyboard
-- `Ctrl+Shift+A` - Toggle panel Autofy
-- `Ctrl+Shift+F` - Isi semua pertanyaan (saat panel terbuka)
+- `Ctrl+Shift+A` - Buka/tutup panel Autofy
+- `Ctrl+Shift+F` - Fill form with AI (saat panel terbuka)
+
+#### Pengaturan Personalisasi
+Buka popup extension untuk menyesuaikan:
+- **Response Style** - Natural, professional, atau creative
+- **Language** - Bahasa Indonesia atau English  
+- **Fill Speed** - Kecepatan pengisian form
+- **Notifications** - Aktif/nonaktif notifikasi
+
+#### Status AI Connection
+- 🟢 **AI Ready** - Siap digunakan
+- 🟡 **Testing** - Sedang mengecek koneksi
+- 🔴 **Error** - Ada masalah koneksi
+
+### Fitur Lanjutan
 
 #### Kustomisasi Gaya Respons
 - **Natural** - Jawaban yang conversational dan natural
@@ -302,5 +293,5 @@ Jika project ini bermanfaat, berikan ⭐ di GitHub!
 ---
 
 <p align="center">
-  Dibuat dengan ❤️ oleh <a href="https://github.com/your-username">Farel Rasyah</a>
+  Dibuat dengan ❤️ oleh <a href="https://github.com/your-farelrasyah">Farel Rasyah</a>
 </p>

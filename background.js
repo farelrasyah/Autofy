@@ -125,9 +125,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success });
       });
       return true; // Async response
-      
-    case 'testGeminiConnection':
-      testGeminiConnection(message.apiKey).then(result => {
+        case 'testGeminiConnection':
+      testGeminiConnection().then(result => {
         sendResponse(result);
       });
       return true; // Async response
@@ -157,6 +156,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.action.setBadgeBackgroundColor({
           tabId: sender.tab.id,
           color: message.color || '#667eea'
+        });      }
+      sendResponse({ success: true });
+      break;
+      
+    case 'contentScriptReady':
+      console.log('✅ Content script ready on:', message.url);
+      // Set badge to indicate ready status
+      if (sender.tab?.id) {
+        chrome.action.setBadgeText({
+          tabId: sender.tab.id,
+          text: '✓'
+        });
+        chrome.action.setBadgeBackgroundColor({
+          tabId: sender.tab.id,
+          color: '#28a745'
+        });
+      }
+      sendResponse({ success: true });
+      break;
+      
+    case 'contentScriptError':
+      console.error('❌ Content script error:', message.error);
+      // Set badge to indicate error status
+      if (sender.tab?.id) {
+        chrome.action.setBadgeText({
+          tabId: sender.tab.id,
+          text: '!'
+        });
+        chrome.action.setBadgeBackgroundColor({
+          tabId: sender.tab.id,
+          color: '#dc3545'
         });
       }
       sendResponse({ success: true });
@@ -205,10 +235,15 @@ async function saveExtensionConfig(config) {
 /**
  * Test Gemini connection dengan timeout dan retry
  */
-async function testGeminiConnection(apiKey) {
+async function testGeminiConnection() {
   console.log('🧪 Testing Gemini connection...');
   
   try {
+    // Get API key from config
+    const configManager = new ConfigManager();
+    const config = await configManager.getConfig();
+    const apiKey = config.geminiApiKey;
+    
     if (!apiKey || apiKey.length < 20) {
       return { success: false, error: 'Invalid API key format' };
     }

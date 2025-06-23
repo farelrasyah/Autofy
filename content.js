@@ -14,6 +14,8 @@ let isProcessing = false;
 async function initializeAutofy() {
   try {
     console.log('🚀 Initializing Autofy...');
+    console.log('📍 URL:', window.location.href);
+    console.log('📍 Is Google Form:', isGoogleFormPage());
     
     // Initialize komponen-komponen
     configManager = new ConfigManager();
@@ -22,6 +24,7 @@ async function initializeAutofy() {
     
     // Load konfigurasi
     const config = await configManager.getConfig();
+    console.log('⚙️ Config loaded:', !!config);
     
     // Initialize Gemini service dengan API key
     if (config.geminiApiKey && configManager.isValidApiKey(config.geminiApiKey)) {
@@ -29,18 +32,36 @@ async function initializeAutofy() {
       console.log('✅ Gemini service initialized');
     } else {
       console.warn('⚠️ Gemini API key not found or invalid');
+      // Try to get API key from protection system
+      try {
+        if (typeof ApiKeyProtection !== 'undefined') {
+          const apiProtection = new ApiKeyProtection();
+          const apiKey = apiProtection.getApiKey();
+          if (apiKey) {
+            geminiService = new GeminiService(apiKey);
+            console.log('✅ Gemini service initialized with protected API key');
+          }
+        }
+      } catch (protectionError) {
+        console.warn('⚠️ Could not initialize API protection:', protectionError);
+      }
     }
     
     // Cek apakah ini halaman Google Form yang valid
     if (isGoogleFormPage()) {
       setupAutofyInterface();
       console.log('✅ Autofy initialized successfully');
+      
+      // Send ready signal to extension
+      chrome.runtime.sendMessage({ action: 'contentScriptReady', url: window.location.href });
     } else {
       console.log('ℹ️ Not a Google Form page, skipping initialization');
     }
     
   } catch (error) {
     console.error('❌ Error initializing Autofy:', error);
+    // Send error signal to extension
+    chrome.runtime.sendMessage({ action: 'contentScriptError', error: error.message });
   }
 }
 
@@ -540,34 +561,64 @@ function setupKeyboardShortcuts() {
  * Handle messages from popup/background
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('📨 Received message:', message.action);
+  
   switch (message.action) {
     case 'analyzeForm':
-      analyzeForm();
-      sendResponse({ success: true });
+      try {
+        analyzeForm();
+        sendResponse({ success: true, message: 'Form analysis started' });
+      } catch (error) {
+        console.error('Error analyzing form:', error);
+        sendResponse({ success: false, error: error.message });
+      }
       break;
       
     case 'fillForm':
-      fillAllQuestions(message.onlyUnanswered || false);
-      sendResponse({ success: true });
+      try {
+        console.log('🤖 Starting form filling process...');
+        fillAllQuestions(message.onlyUnanswered || false);
+        sendResponse({ success: true, message: 'Form filling started' });
+      } catch (error) {
+        console.error('Error filling form:', error);
+        sendResponse({ success: false, error: error.message });
+      }
       break;
       
     case 'getFormData':
-      if (formAnalyzer) {
-        const formData = formAnalyzer.analyzeForm();
-        sendResponse({ formData });
-      } else {
-        sendResponse({ error: 'Form analyzer not initialized' });
+      try {
+        if (formAnalyzer) {
+          const formData = formAnalyzer.analyzeForm();
+          sendResponse({ success: true, formData });
+        } else {
+          sendResponse({ success: false, error: 'Form analyzer not initialized' });
+        }
+      } catch (error) {
+        console.error('Error getting form data:', error);
+        sendResponse({ success: false, error: error.message });
       }
       break;
       
     case 'togglePanel':
-      toggleControlPanel();
-      sendResponse({ success: true });
+      try {
+        toggleControlPanel();
+        sendResponse({ success: true, message: 'Panel toggled' });
+      } catch (error) {
+        console.error('Error toggling panel:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+      break;
+      
+    case 'ping':
+      // Health check
+      sendResponse({ success: true, message: 'Content script is alive', timestamp: Date.now() });
       break;
       
     default:
-      sendResponse({ error: 'Unknown action' });
+      sendResponse({ success: false, error: 'Unknown action: ' + message.action });
   }
+  
+  return true; // Keep message channel open for async response
 });
 
 // Initialize when DOM is ready

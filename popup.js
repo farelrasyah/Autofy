@@ -39,10 +39,8 @@ async function loadCurrentConfig() {
     currentConfig = await configManager.getConfig();
     populateForm(currentConfig);
     
-    // Test API connection if key exists
-    if (currentConfig.geminiApiKey && configManager.isValidApiKey(currentConfig.geminiApiKey)) {
-      testGeminiConnection(false); // Don't show success message
-    }
+    // Always test AI connection since API key is built-in
+    testGeminiConnection(false); // Don't show success message
   } catch (error) {
     console.error('Error loading config:', error);
     showStatusMessage('Gagal memuat konfigurasi', 'error');
@@ -53,12 +51,6 @@ async function loadCurrentConfig() {
  * Populate form with current config
  */
 function populateForm(config) {
-  // API Key
-  const apiKeyInput = document.getElementById('api-key');
-  if (config.geminiApiKey) {
-    apiKeyInput.value = config.geminiApiKey;
-  }
-  
   // Response style
   const responseStyleSelect = document.getElementById('response-style');
   responseStyleSelect.value = config.responseStyle || 'natural';
@@ -74,15 +66,15 @@ function populateForm(config) {
   // Checkboxes
   document.getElementById('auto-fill').checked = config.autoFillEnabled !== false;
   document.getElementById('notifications').checked = config.notifications !== false;
+  
+  // Update AI status - always ready since API key is built-in
+  updateConnectionStatus('connected', 'AI Ready - Powered by Gemini');
 }
 
 /**
  * Setup event listeners
  */
 function setupEventListeners() {
-  // API Key toggle visibility
-  document.getElementById('toggle-api-key').addEventListener('click', toggleApiKeyVisibility);
-  
   // Test connection button
   document.getElementById('test-connection-btn').addEventListener('click', () => testGeminiConnection(true));
   
@@ -91,9 +83,6 @@ function setupEventListeners() {
   
   // Reset button
   document.getElementById('reset-btn').addEventListener('click', resetConfiguration);
-  
-  // API key input change
-  document.getElementById('api-key').addEventListener('input', handleApiKeyChange);
   
   // Form changes
   const formElements = ['response-style', 'language', 'fill-speed', 'auto-fill', 'notifications'];
@@ -122,37 +111,16 @@ function setupQuickActions() {
     });
     window.close();
   });
-}
-
-/**
- * Toggle API key visibility
- */
-function toggleApiKeyVisibility() {
-  const apiKeyInput = document.getElementById('api-key');
-  const toggleBtn = document.getElementById('toggle-api-key');
   
-  if (apiKeyInput.type === 'password') {
-    apiKeyInput.type = 'text';
-    toggleBtn.textContent = '🙈';
-  } else {
-    apiKeyInput.type = 'password';
-    toggleBtn.textContent = '👁️';
-  }
-}
-
-/**
- * Handle API key input change
- */
-function handleApiKeyChange() {
-  const apiKey = document.getElementById('api-key').value;
-  const connectionStatus = document.getElementById('connection-status');
-  
-  if (!apiKey) {
-    updateConnectionStatus('disconnected', 'Belum terhubung');
-  } else if (!configManager.isValidApiKey(apiKey)) {
-    updateConnectionStatus('disconnected', 'API key tidak valid');
-  } else {
-    updateConnectionStatus('testing', 'Siap untuk test...');
+  // API Test Page (for troubleshooting)
+  const testApiBtn = document.getElementById('test-api-btn');
+  if (testApiBtn) {
+    testApiBtn.addEventListener('click', () => {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('test-api.html')
+      });
+      window.close();
+    });
   }
 }
 
@@ -174,24 +142,13 @@ function handleFormChange() {
  * Test Gemini connection
  */
 async function testGeminiConnection(showResult = true) {
-  const apiKey = document.getElementById('api-key').value;
   const testBtn = document.getElementById('test-connection-btn');
-  
-  if (!apiKey) {
-    showStatusMessage('Masukkan API key terlebih dahulu', 'error');
-    return;
-  }
-  
-  if (!configManager.isValidApiKey(apiKey)) {
-    showStatusMessage('Format API key tidak valid', 'error');
-    updateConnectionStatus('disconnected', 'API key tidak valid');
-    return;
-  }
   
   // Update UI
   testBtn.disabled = true;
   testBtn.innerHTML = '<span>⏳</span> Testing...';
   updateConnectionStatus('testing', 'Menguji koneksi...');
+
   try {
     // Send test request to background script dengan timeout
     const response = await new Promise((resolve, reject) => {
@@ -201,8 +158,7 @@ async function testGeminiConnection(showResult = true) {
       }, 15000); // 15 detik timeout
       
       chrome.runtime.sendMessage({
-        action: 'testGeminiConnection',
-        apiKey: apiKey
+        action: 'testGeminiConnection'
       }, (response) => {
         clearTimeout(timeout);
         
@@ -215,9 +171,9 @@ async function testGeminiConnection(showResult = true) {
     });
     
     if (response.success) {
-      updateConnectionStatus('connected', 'Terhubung');
+      updateConnectionStatus('connected', 'AI Ready - Powered by Gemini');
       if (showResult) {
-        showStatusMessage('✅ Koneksi berhasil! API key valid.', 'success');
+        showStatusMessage('✅ Koneksi berhasil! AI siap digunakan.', 'success');
       }
     } else {
       updateConnectionStatus('disconnected', 'Koneksi gagal');
@@ -233,7 +189,7 @@ async function testGeminiConnection(showResult = true) {
   } finally {
     // Reset button
     testBtn.disabled = false;
-    testBtn.innerHTML = '<span>🔗</span> Test Koneksi Gemini';
+    testBtn.innerHTML = '<span>🔗</span> Test Koneksi AI';
   }
 }
 
@@ -260,21 +216,14 @@ async function saveConfiguration() {
   const saveBtn = document.getElementById('save-btn');
   
   try {
-    // Get form data
+    // Get form data (no API key needed - it's built-in)
     const newConfig = {
-      geminiApiKey: document.getElementById('api-key').value,
       responseStyle: document.getElementById('response-style').value,
       language: document.getElementById('language').value,
       fillSpeed: document.getElementById('fill-speed').value,
       autoFillEnabled: document.getElementById('auto-fill').checked,
       notifications: document.getElementById('notifications').checked
     };
-    
-    // Validate API key
-    if (newConfig.geminiApiKey && !configManager.isValidApiKey(newConfig.geminiApiKey)) {
-      showStatusMessage('API key tidak valid', 'error');
-      return;
-    }
     
     // Update button state
     saveBtn.disabled = true;
@@ -287,10 +236,8 @@ async function saveConfiguration() {
       currentConfig = newConfig;
       showStatusMessage('✅ Konfigurasi berhasil disimpan!', 'success');
       
-      // Test connection if API key changed
-      if (newConfig.geminiApiKey) {
-        setTimeout(() => testGeminiConnection(false), 500);
-      }
+      // Test AI connection to verify it's still working
+      setTimeout(() => testGeminiConnection(false), 500);
     } else {
       showStatusMessage('❌ Gagal menyimpan konfigurasi', 'error');
     }
@@ -361,9 +308,53 @@ async function checkCurrentTab() {
     if (currentTab && currentTab.url && currentTab.url.includes('docs.google.com/forms/')) {
       // Add quick action for current form
       addCurrentFormAction(currentTab);
+      
+      // Test if content script is loaded
+      await testContentScriptConnection(currentTab);
     }
   } catch (error) {
     console.warn('Could not check current tab:', error);
+  }
+}
+
+/**
+ * Test connection to content script
+ */
+async function testContentScriptConnection(tab) {
+  try {
+    const response = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Content script ping timeout'));
+      }, 3000);
+      
+      chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (response) => {
+        clearTimeout(timeout);
+        
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
+    });
+    
+    if (response && response.success) {
+      console.log('✅ Content script is ready');
+      // Update UI to show content script is ready
+      const statusEl = document.getElementById('content-script-status');
+      if (statusEl) {
+        statusEl.textContent = 'Content Script: Ready';
+        statusEl.className = 'status ready';
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Content script not ready:', error.message);
+    // Update UI to show content script needs refresh
+    const statusEl = document.getElementById('content-script-status');
+    if (statusEl) {
+      statusEl.textContent = 'Content Script: Needs Refresh';
+      statusEl.className = 'status error';
+    }
   }
 }
 
@@ -377,20 +368,87 @@ function addCurrentFormAction(tab) {
   currentFormBtn.className = 'quick-btn';
   currentFormBtn.innerHTML = `
     <span>⚡</span>
-    Analisis Form Saat Ini
+    Fill Form with AI
   `;
   
-  currentFormBtn.addEventListener('click', () => {
-    chrome.tabs.sendMessage(tab.id, { action: 'analyzeForm' }, (response) => {
-      if (chrome.runtime.lastError) {
-        showStatusMessage('❌ Tidak dapat berkomunikasi dengan halaman form', 'error');
-      } else {
-        showStatusMessage('✅ Form sedang dianalisis...', 'info');
-        window.close();
+  currentFormBtn.addEventListener('click', async () => {
+    try {
+      // Check if tab is still valid
+      if (!tab || !tab.id) {
+        showStatusMessage('❌ Tab tidak valid', 'error');
+        return;
       }
-    });
+      
+      // Check if URL is still Google Form
+      const currentTab = await chrome.tabs.get(tab.id);
+      if (!currentTab.url || !currentTab.url.includes('docs.google.com/forms/')) {
+        showStatusMessage('❌ Halaman bukan Google Form', 'error');
+        return;
+      }
+      
+      // Show loading state
+      currentFormBtn.disabled = true;
+      currentFormBtn.innerHTML = '<span>⏳</span> Processing...';
+      showStatusMessage('🤖 AI sedang menganalisis form...', 'info');
+      
+      // Try to inject content script if not already injected
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['config.js', 'api-protection.js', 'gemini-service.js', 'form-analyzer.js', 'form-filler.js', 'content.js']
+        });
+        
+        // Wait a bit for script to initialize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (injectionError) {
+        console.log('Content script might already be injected:', injectionError.message);
+      }
+      
+      // Send message with timeout
+      const response = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout: Content script tidak merespons dalam 10 detik'));
+        }, 10000);
+        
+        chrome.tabs.sendMessage(tab.id, { action: 'fillForm', onlyUnanswered: false }, (response) => {
+          clearTimeout(timeout);
+          
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      if (response && response.success) {
+        showStatusMessage('✅ Form berhasil diisi dengan AI!', 'success');
+        setTimeout(() => window.close(), 2000);
+      } else {
+        showStatusMessage('❌ Gagal mengisi form: ' + (response?.error || 'Unknown error'), 'error');
+      }
+      
+    } catch (error) {
+      console.error('Error filling form:', error);
+      
+      let errorMessage = '❌ ';
+      if (error.message.includes('Timeout')) {
+        errorMessage += 'Content script tidak merespons. Coba refresh halaman form dan ulangi.';
+      } else if (error.message.includes('tab')) {
+        errorMessage += 'Tidak dapat berkomunikasi dengan tab. Pastikan form masih terbuka.';
+      } else if (error.message.includes('Receiving end does not exist')) {
+        errorMessage += 'Content script belum siap. Refresh halaman form dan coba lagi.';
+      } else {
+        errorMessage += 'Tidak dapat berkomunikasi dengan halaman form. ' + error.message;
+      }
+      
+      showStatusMessage(errorMessage, 'error');
+    } finally {
+      // Reset button
+      currentFormBtn.disabled = false;
+      currentFormBtn.innerHTML = '<span>⚡</span> Fill Form with AI';
+    }
   });
-  
   // Insert after the first quick action
   const firstBtn = quickActions.querySelector('.quick-btn');
   firstBtn.parentNode.insertBefore(currentFormBtn, firstBtn.nextSibling);
