@@ -49,54 +49,129 @@ class FormAnalyzer {
       this.formDescription = descriptionElement.textContent?.trim() || '';
     }
   }
-
   /**
    * Mengekstrak semua pertanyaan dari form
    */
   extractQuestions() {
     this.questions = [];
+    console.log('🔍 Starting question extraction...');
     
-    // Selector untuk container pertanyaan Google Form
-    const questionContainers = document.querySelectorAll('[data-params*="question"] .freebirdFormviewerComponentsQuestionBaseRoot, .Qr7Oae, [role="listitem"][data-params]');
+    // Multiple selectors for different Google Form layouts
+    const selectors = [
+      // Modern Google Forms
+      '[data-params*="question"]',
+      '[role="listitem"][data-params]',
+      '[jsmodel][data-params]',
+      // Legacy selectors
+      '.freebirdFormviewerComponentsQuestionBaseRoot',
+      '.Qr7Oae',
+      // Alternative selectors
+      '[data-item-id]',
+      '.geS5n',
+      '.z12JJ'
+    ];
+    
+    let questionContainers = [];
+    
+    // Try each selector until we find questions
+    for (const selector of selectors) {
+      questionContainers = document.querySelectorAll(selector);
+      console.log(`🔍 Selector "${selector}" found ${questionContainers.length} containers`);
+      
+      if (questionContainers.length > 0) {
+        // Filter containers that actually contain questions
+        const validContainers = Array.from(questionContainers).filter(container => {
+          const hasQuestionText = container.querySelector('[data-docs-text-id], [dir="auto"], .M7eMe, .AgroKb, span[jsname]');
+          const hasInput = container.querySelector('input, textarea, select, [role="listbox"], [data-value]');
+          return hasQuestionText && hasInput;
+        });
+        
+        console.log(`🔍 Found ${validContainers.length} valid question containers`);
+        
+        if (validContainers.length > 0) {
+          questionContainers = validContainers;
+          break;
+        }
+      }
+    }
+    
+    if (questionContainers.length === 0) {
+      console.warn('⚠️ No question containers found, trying fallback method...');
+      this.extractQuestionsAlternative();
+      return;
+    }
     
     questionContainers.forEach((container, index) => {
       try {
+        console.log(`📝 Extracting question ${index + 1}...`);
         const question = this.extractQuestionFromContainer(container, index);
         if (question && question.text) {
           this.questions.push(question);
+          console.log(`✅ Question ${index + 1}: "${question.text.substring(0, 50)}..." (${question.type})`);
+        } else {
+          console.warn(`⚠️ Question ${index + 1}: Failed to extract`);
         }
       } catch (error) {
-        console.warn(`Error extracting question ${index}:`, error);
+        console.error(`❌ Error extracting question ${index + 1}:`, error);
       }
     });
-
-    // Fallback: cari dengan selector alternatif
-    if (this.questions.length === 0) {
-      this.extractQuestionsAlternative();
-    }
+    
+    console.log(`📊 Total questions extracted: ${this.questions.length}`);
   }
-
   /**
    * Mengekstrak detail pertanyaan dari container
    */
   extractQuestionFromContainer(container, index) {
-    // Ekstrak teks pertanyaan
-    const questionTextElement = container.querySelector('[data-docs-text-id] span, .freebirdFormviewerComponentsQuestionBaseTitle, .M7eMe, .AgroKb') ||
-                               container.querySelector('[dir="auto"]') ||
-                               container.querySelector('span[jsname]');
+    console.log(`🔍 Extracting question from container ${index + 1}...`);
     
-    if (!questionTextElement) return null;
+    // Multiple selectors for question text
+    const textSelectors = [
+      '[data-docs-text-id] span',
+      '[dir="auto"]',
+      '.M7eMe',
+      '.AgroKb', 
+      '.freebirdFormviewerComponentsQuestionBaseTitle',
+      'span[jsname]',
+      '[role="heading"]',
+      '.geS5n',
+      'div[data-docs-text-id]'
+    ];
+    
+    let questionTextElement = null;
+    let questionText = '';
+    
+    // Try each selector to find question text
+    for (const selector of textSelectors) {
+      const elements = container.querySelectorAll(selector);
+      for (const element of elements) {
+        const text = element.textContent?.trim();
+        if (text && text.length > 5 && !text.includes('*') && !text.match(/^\d+$/)) {
+          questionTextElement = element;
+          questionText = text;
+          console.log(`✅ Found question text with selector "${selector}": "${text.substring(0, 50)}..."`);
+          break;
+        }
+      }
+      if (questionText) break;
+    }
 
-    const questionText = questionTextElement.textContent?.trim();
-    if (!questionText) return null;
+    if (!questionText) {
+      console.warn('⚠️ No question text found in container');
+      return null;
+    }
 
     // Cek apakah pertanyaan wajib
-    const isRequired = container.querySelector('.freebirdFormviewerComponentsQuestionBaseRequiredAsterisk, .vnumgf') !== null;
+    const isRequired = container.querySelector('.freebirdFormviewerComponentsQuestionBaseRequiredAsterisk, .vnumgf, [aria-label*="required"], [aria-label*="Required"]') !== null;
 
     // Tentukan jenis pertanyaan dan ekstrak opsi
     const questionType = this.determineQuestionType(container);
+    console.log(`📝 Question type determined: ${questionType}`);
+    
     const options = this.extractOptions(container, questionType);
     const inputElement = this.findInputElement(container, questionType);
+    
+    console.log(`📝 Input element found: ${!!inputElement}`);
+    console.log(`📝 Options found: ${options.length}`);
 
     return {
       index: index,
@@ -217,33 +292,79 @@ class FormAnalyzer {
 
     return options;
   }
-
   /**
    * Mencari elemen input untuk pertanyaan
    */
   findInputElement(container, questionType) {
+    console.log(`🔍 Finding input element for type: ${questionType}`);
+    
+    let element = null;
+    
     switch (questionType) {
       case 'multiple_choice':
-        return container.querySelector('input[type="radio"]');
+        element = container.querySelector('input[type="radio"]') ||
+                 container.querySelector('[role="radio"]') ||
+                 container.querySelector('.freebirdFormviewerComponentsQuestionRadioChoice');
+        break;
       
       case 'checkbox':
-        return container.querySelectorAll('input[type="checkbox"]');
+        element = container.querySelectorAll('input[type="checkbox"]');
+        if (element.length === 0) {
+          element = container.querySelectorAll('[role="checkbox"]') ||
+                   container.querySelectorAll('.freebirdFormviewerComponentsQuestionCheckboxChoice');
+        }
+        break;
       
       case 'dropdown':
-        return container.querySelector('select, [role="listbox"]');
+        element = container.querySelector('select') ||
+                 container.querySelector('[role="listbox"]') ||
+                 container.querySelector('[role="combobox"]') ||
+                 container.querySelector('.quantumWizMenuPaperselectDropDown');
+        break;
       
       case 'linear_scale':
-        return container.querySelectorAll('[data-value]');
+        element = container.querySelectorAll('[data-value]') ||
+                 container.querySelectorAll('[role="radio"][data-answer-value]') ||
+                 container.querySelectorAll('.freebirdFormviewerComponentsQuestionLinearscaleLinearscaleContainer [role="radio"]');
+        break;
       
       case 'paragraph':
-        return container.querySelector('textarea, .quantumWizTextinputPapertextareaInput');
+        element = container.querySelector('textarea') ||
+                 container.querySelector('.quantumWizTextinputPapertextareaInput') ||
+                 container.querySelector('[role="textbox"][aria-multiline="true"]');
+        break;
       
       case 'file_upload':
-        return container.querySelector('input[type="file"]');
+        element = container.querySelector('input[type="file"]') ||
+                 container.querySelector('[role="button"][aria-label*="file"]');
+        break;
+      
+      case 'date':
+        element = container.querySelector('input[type="date"]') ||
+                 container.querySelector('.quantumWizTextinputPaperinputInput[aria-label*="date"]') ||
+                 container.querySelector('[data-initial-value][placeholder*="date"]');
+        break;
+      
+      case 'time':
+        element = container.querySelector('input[type="time"]') ||
+                 container.querySelector('.quantumWizTextinputPaperinputInput[aria-label*="time"]') ||
+                 container.querySelector('[data-initial-value][placeholder*="time"]');
+        break;
       
       default:
-        return container.querySelector('input[type="text"], input[type="email"], input[type="url"], input[type="number"], input[type="date"], input[type="time"], .quantumWizTextinputPaperinputInput');
+        // For text inputs
+        element = container.querySelector('input[type="text"]') ||
+                 container.querySelector('input[type="email"]') ||
+                 container.querySelector('input[type="url"]') ||
+                 container.querySelector('input[type="number"]') ||
+                 container.querySelector('.quantumWizTextinputPaperinputInput') ||
+                 container.querySelector('[role="textbox"]') ||
+                 container.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        break;
     }
+    
+    console.log(`📝 Input element for ${questionType}:`, !!element);
+    return element;
   }
 
   /**

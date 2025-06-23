@@ -10,6 +10,60 @@ class GeminiService {
   }
 
   /**
+   * Test connection to Gemini API
+   */
+  async testConnection() {
+    try {
+      console.log('🧪 Testing Gemini API connection...');
+      
+      const response = await fetch(
+        `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: 'Test connection - respond with "OK"'
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 10,
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { 
+          success: false, 
+          error: `API Error ${response.status}: ${errorData.error?.message || 'Unknown error'}` 
+        };
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        return { 
+          success: false, 
+          error: 'Invalid response format from API' 
+        };
+      }
+
+      console.log('✅ Gemini API connection test successful');
+      return { success: true, response: data.candidates[0].content.parts[0].text };
+      
+    } catch (error) {
+      console.error('❌ Gemini API connection test failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Menghasilkan jawaban menggunakan Gemini AI
    */
   async generateAnswer(question, context = {}) {
@@ -243,14 +297,52 @@ Question: "${question}"`;
    */
   async testConnection() {
     try {
-      await this.generateAnswer('Test connection', { 
-        questionType: 'short_answer',
-        language: 'en'
-      });
-      return true;
+      console.log('🧪 Menguji koneksi ke API Gemini...');
+      
+      const response = await fetch(
+        `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: 'Uji koneksi - jawab dengan "OK"'
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 10,
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { 
+          success: false, 
+          error: `API Error ${response.status}: ${errorData.error?.message || 'Unknown error'}` 
+        };
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        return { 
+          success: false, 
+          error: 'Format respons tidak valid dari API' 
+        };
+      }
+
+      console.log('✅ Tes koneksi API Gemini berhasil');
+      return { success: true, response: data.candidates[0].content.parts[0].text };
+      
     } catch (error) {
-      console.error('Gemini connection test failed:', error);
-      return false;
+      console.error('❌ Tes koneksi API Gemini gagal:', error);
+      return { success: false, error: error.message };
     }
   }
 }

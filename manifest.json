@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "description": "Ekstensi Chrome yang menggunakan Gemini AI untuk mengisi Google Form secara otomatis",
   "author": "Farel Rasyah",
-  
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "notifications",
+    "contextMenus"
   ],
   
   "host_permissions": [
@@ -18,12 +19,19 @@
   
   "background": {
     "service_worker": "background.js"
-  },
-  
-  "content_scripts": [
+  },  "content_scripts": [
     {
       "matches": ["https://docs.google.com/forms/*"],
-      "js": ["content.js"],
+      "js": [
+        "config.js",
+        "api-protection.js", 
+        "gemini-service.js",
+        "form-analyzer.js",
+        "form-filler.js",
+        "debug-tools.js",
+        "debug-extended.js",
+        "content.js"
+      ],
       "css": ["styles.css"],
       "run_at": "document_end"
     }

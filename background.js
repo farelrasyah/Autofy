@@ -18,10 +18,22 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 /**
+ * Safe notification creation with API availability check
+ */
+function createNotification(options) {
+  if (chrome.notifications && chrome.notifications.create) {
+    return chrome.notifications.create(options);
+  } else {
+    console.warn('chrome.notifications.create API not available');
+    return Promise.resolve();
+  }
+}
+
+/**
  * Show welcome notification
  */
 function showWelcomeNotification() {
-  chrome.notifications.create({
+  createNotification({
     type: 'basic',
     iconUrl: 'icons/icon48.png',
     title: 'Autofy - AI Form Assistant',
@@ -67,9 +79,8 @@ chrome.action.onClicked.addListener(async (tab) => {
           injectContentScript(tab.id);
         }
       });
-    } else {
-      // Not a Google Form page, show notification
-      chrome.notifications.create({
+    } else {      // Not a Google Form page, show notification
+      createNotification({
         type: 'basic',
         iconUrl: 'icons/icon48.png',
         title: 'Autofy',
@@ -130,9 +141,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse(result);
       });
       return true; // Async response
-      
-    case 'showNotification':
-      chrome.notifications.create({
+        case 'showNotification':
+      createNotification({
         type: 'basic',
         iconUrl: 'icons/icon48.png',
         title: message.title || 'Autofy',
@@ -375,66 +385,92 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 /**
- * Handle notification clicks
+ * Safe notification clear with API availability check
  */
-chrome.notifications.onClicked.addListener((notificationId) => {
-  chrome.notifications.clear(notificationId);
-});
-
-chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
-  chrome.notifications.clear(notificationId);
-  
-  if (buttonIndex === 0) {
-    // Open settings
-    openSettingsPage();
-  } else if (buttonIndex === 1) {
-    // Open tutorial
-    chrome.tabs.create({
-      url: 'https://github.com/your-username/autofy-extension/wiki/Tutorial'
-    });
+function clearNotification(notificationId) {
+  if (chrome.notifications && chrome.notifications.clear) {
+    chrome.notifications.clear(notificationId);
+  } else {
+    console.warn('chrome.notifications.clear API not available');
   }
-});
+}
 
 /**
- * Context menu setup
+ * Handle notification clicks (with API availability check)
+ */
+if (chrome.notifications && chrome.notifications.onClicked) {
+  chrome.notifications.onClicked.addListener((notificationId) => {
+    clearNotification(notificationId);
+  });
+} else {
+  console.warn('chrome.notifications API not available');
+}
+
+if (chrome.notifications && chrome.notifications.onButtonClicked) {
+  chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+    clearNotification(notificationId);
+    
+    if (buttonIndex === 0) {
+      // Open settings
+      openSettingsPage();
+    } else if (buttonIndex === 1) {
+      // Open tutorial
+      chrome.tabs.create({
+        url: 'https://github.com/your-username/autofy-extension/wiki/Tutorial'
+      });
+    }
+  });
+} else {
+  console.warn('chrome.notifications.onButtonClicked API not available');
+}
+
+/**
+ * Context menu setup with API availability check
  */
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'autofy-analyze',
-    title: 'Analisis form dengan Autofy',
-    contexts: ['page'],
-    documentUrlPatterns: ['*://docs.google.com/forms/*']
-  });
-  
-  chrome.contextMenus.create({
-    id: 'autofy-fill',
-    title: 'Isi form dengan AI',
-    contexts: ['page'],
-    documentUrlPatterns: ['*://docs.google.com/forms/*']
-  });
-  
-  chrome.contextMenus.create({
-    id: 'autofy-settings',
-    title: 'Pengaturan Autofy',
-    contexts: ['action']
-  });
-});
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  switch (info.menuItemId) {
-    case 'autofy-analyze':
-      chrome.tabs.sendMessage(tab.id, { action: 'analyzeForm' });
-      break;
-      
-    case 'autofy-fill':
-      chrome.tabs.sendMessage(tab.id, { action: 'fillForm', onlyUnanswered: true });
-      break;
-      
-    case 'autofy-settings':
-      openSettingsPage();
-      break;
+  if (chrome.contextMenus && chrome.contextMenus.create) {
+    chrome.contextMenus.create({
+      id: 'autofy-analyze',
+      title: 'Analisis form dengan Autofy',
+      contexts: ['page'],
+      documentUrlPatterns: ['*://docs.google.com/forms/*']
+    });
+    
+    chrome.contextMenus.create({
+      id: 'autofy-fill',
+      title: 'Isi form dengan AI',
+      contexts: ['page'],
+      documentUrlPatterns: ['*://docs.google.com/forms/*']
+    });
+    
+    chrome.contextMenus.create({
+      id: 'autofy-settings',
+      title: 'Pengaturan Autofy',
+      contexts: ['action']
+    });
+  } else {
+    console.warn('chrome.contextMenus API not available');
   }
 });
+
+if (chrome.contextMenus && chrome.contextMenus.onClicked) {
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    switch (info.menuItemId) {
+      case 'autofy-analyze':
+        chrome.tabs.sendMessage(tab.id, { action: 'analyzeForm' });
+        break;
+        
+      case 'autofy-fill':
+        chrome.tabs.sendMessage(tab.id, { action: 'fillForm', onlyUnanswered: true });
+        break;
+          case 'autofy-settings':
+        openSettingsPage();
+        break;
+    }
+  });
+} else {
+  console.warn('chrome.contextMenus.onClicked API not available');
+}
 
 /**
  * Handle extension startup

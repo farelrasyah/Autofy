@@ -7,17 +7,36 @@ class FormFiller {
     this.fillDelay = 500; // Delay antar pengisian (ms)
     this.typingSpeed = 50; // Kecepatan mengetik (ms per karakter)
   }
-
   /**
    * Mengisi jawaban untuk satu pertanyaan
    */
   async fillQuestion(question, answer) {
-    if (!question || !question.inputElement || !answer) {
-      throw new Error('Invalid question or answer');
+    console.log('📝 FormFiller.fillQuestion called with:', {
+      questionType: question?.type,
+      questionText: question?.text?.substring(0, 50),
+      answer: answer?.substring(0, 50),
+      hasInputElement: !!question?.inputElement
+    });
+    
+    if (!question) {
+      console.error('❌ Question is null or undefined');
+      return false;
+    }
+    
+    if (!question.inputElement) {
+      console.error('❌ Question input element not found');
+      return false;
+    }
+    
+    if (!answer || answer.trim() === '') {
+      console.error('❌ Answer is empty or null');
+      return false;
     }
 
     try {
       await this.delay(this.fillDelay);
+      
+      console.log(`📝 Filling ${question.type} question with answer: "${answer}"`);
       
       switch (question.type) {
         case 'multiple_choice':
@@ -46,11 +65,13 @@ class FormFiller {
           return await this.fillTime(question, answer);
         
         default:
-          console.warn(`Unsupported question type: ${question.type}`);
-          return false;
-      }
+          console.warn(`❌ Unsupported question type: ${question.type}`);
+          return false;      }
     } catch (error) {
-      console.error(`Error filling question: ${question.text}`, error);
+      console.error(`❌ Error filling question "${question.text?.substring(0, 50)}":`, error);
+      console.error('Question details:', question);
+      console.error('Answer:', answer);
+      console.error('Error stack:', error.stack);
       return false;
     }
   }
@@ -187,35 +208,66 @@ class FormFiller {
     
     return false;
   }
-
   /**
    * Mengisi text input (short answer, paragraph, email, url, number)
    */
   async fillTextInput(question, answer) {
-    const input = question.inputElement;
-    if (!input) return false;
-
-    // Focus pada input
-    await this.focusElement(input);
-    await this.delay(100);
-
-    // Clear existing value
-    await this.clearInput(input);
-    await this.delay(100);
-
-    // Type answer with realistic speed
-    if (question.type === 'paragraph') {
-      await this.typeText(input, answer, this.typingSpeed);
-    } else {
-      await this.typeText(input, answer, this.typingSpeed / 2); // Faster for short inputs
+    console.log('📝 fillTextInput called for:', question.type);
+    
+    let input = question.inputElement;
+    if (!input) {
+      console.warn('❌ No input element found, trying to find alternative...');
+      // Try to find input element again
+      const container = question.element;
+      input = container.querySelector('input[type="text"], input[type="email"], input[type="url"], input[type="number"], textarea, .quantumWizTextinputPaperinputInput, [role="textbox"]');
+      
+      if (!input) {
+        console.error('❌ Still no input element found');
+        return false;
+      }
+      console.log('✅ Found alternative input element');
     }
 
-    // Trigger events
-    await this.triggerEvent(input, 'input');
-    await this.triggerEvent(input, 'change');
-    await this.delay(200);
+    try {
+      console.log('📝 Filling input with answer:', answer.substring(0, 50));
+      
+      // Focus pada input
+      await this.focusElement(input);
+      await this.delay(100);
 
-    return true;
+      // Clear existing value
+      await this.clearInput(input);
+      await this.delay(100);
+
+      // Type answer with realistic speed
+      if (question.type === 'paragraph') {
+        await this.typeText(input, answer, this.typingSpeed);
+      } else {
+        await this.typeText(input, answer, this.typingSpeed / 2); // Faster for short inputs
+      }
+
+      // Trigger events to ensure Google Form recognizes the input
+      await this.triggerEvent(input, 'input');
+      await this.triggerEvent(input, 'change');
+      await this.triggerEvent(input, 'blur');
+      await this.delay(200);
+
+      // Verify the value was set
+      const currentValue = input.value || input.textContent || '';
+      console.log('📝 Current input value after filling:', currentValue.substring(0, 50));
+      
+      if (currentValue.trim() === '') {
+        console.warn('⚠️ Input appears empty after filling, trying direct value assignment...');
+        input.value = answer;
+        await this.triggerEvent(input, 'input');
+        await this.triggerEvent(input, 'change');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ Error filling text input:', error);
+      return false;
+    }
   }
 
   /**
@@ -425,44 +477,92 @@ class FormFiller {
     await this.delay(30);
     element.dispatchEvent(click);
   }
-
   /**
    * Helper: Focus element
    */
   async focusElement(element) {
-    await this.scrollToElement(element);
-    element.focus();
-    await this.triggerEvent(element, 'focus');
+    try {
+      await this.scrollToElement(element);
+      
+      // Multiple ways to focus element
+      if (element.focus) {
+        element.focus();
+      }
+      
+      // Click on element to ensure focus
+      await this.clickElement(element);
+      
+      await this.triggerEvent(element, 'focus');
+      console.log('📝 Element focused successfully');
+    } catch (error) {
+      console.warn('⚠️ Error focusing element:', error);
+    }
   }
 
   /**
    * Helper: Clear input field
    */
   async clearInput(element) {
-    element.value = '';
-    element.focus();
-    
-    // Simulate Ctrl+A and Delete
-    await this.triggerEvent(element, 'keydown', { key: 'a', ctrlKey: true });
-    await this.delay(10);
-    await this.triggerEvent(element, 'keydown', { key: 'Delete' });
-    await this.delay(10);
+    try {
+      // Multiple methods to clear input
+      element.value = '';
+      
+      if (element.textContent !== undefined) {
+        element.textContent = '';
+      }
+      
+      // Simulate selection and deletion
+      element.focus();
+      element.select();
+      
+      // Simulate Ctrl+A and Delete
+      await this.triggerEvent(element, 'keydown', { key: 'a', ctrlKey: true });
+      await this.delay(10);
+      await this.triggerEvent(element, 'keydown', { key: 'Delete' });
+      await this.triggerEvent(element, 'input');
+      await this.delay(10);
+      
+      console.log('📝 Input cleared successfully');
+    } catch (error) {
+      console.warn('⚠️ Error clearing input:', error);
+    }
   }
 
   /**
    * Helper: Type text dengan kecepatan realistis
    */
   async typeText(element, text, speed = 50) {
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      element.value += char;
+    try {
+      console.log(`📝 Typing text: "${text.substring(0, 50)}..." with speed ${speed}ms`);
       
-      await this.triggerEvent(element, 'keydown', { key: char });
-      await this.triggerEvent(element, 'keypress', { key: char });
+      // Method 1: Character by character typing
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        
+        // Update value gradually
+        element.value = element.value + char;
+        
+        // Trigger events
+        await this.triggerEvent(element, 'keydown', { key: char });
+        await this.triggerEvent(element, 'keypress', { key: char });
+        await this.triggerEvent(element, 'input');
+        await this.triggerEvent(element, 'keyup', { key: char });
+        
+        await this.delay(speed + Math.random() * 20); // Add some randomness
+      }
+      
+      // Final events
+      await this.triggerEvent(element, 'change');
+      await this.triggerEvent(element, 'blur');
+      
+      console.log('📝 Text typed successfully');
+    } catch (error) {
+      console.warn('⚠️ Error typing text, trying direct assignment:', error);
+      
+      // Fallback: Direct assignment
+      element.value = text;
       await this.triggerEvent(element, 'input');
-      await this.triggerEvent(element, 'keyup', { key: char });
-      
-      await this.delay(speed + Math.random() * 20); // Add some randomness
+      await this.triggerEvent(element, 'change');
     }
   }
 

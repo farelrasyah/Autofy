@@ -7,16 +7,49 @@ let configManager;
 let currentConfig = {};
 
 /**
- * Initialize popup
+ * Initialize popup with retry mechanism
  */
-document.addEventListener('DOMContentLoaded', async () => {
+function initializePopup() {
   console.log('🎯 Initializing Autofy popup...');
   
+  // Check if DOM is ready
+  if (document.readyState === 'loading') {
+    console.log('⏳ DOM still loading, waiting...');
+    document.addEventListener('DOMContentLoaded', initializePopup);
+    return;
+  }
+  
+  // Run actual initialization
+  runInitialization();
+}
+
+/**
+ * Run the actual initialization
+ */
+async function runInitialization() {
   try {
+    // Run diagnostics first
+    const diagnostics = runDiagnostics();
+    
+    // Check if required classes are available
+    if (typeof ConfigManager === 'undefined') {
+      throw new Error('ConfigManager class is not available');
+    }
+    if (typeof ApiKeyProtection === 'undefined') {
+      throw new Error('ApiKeyProtection class is not available');
+    }
+    
     configManager = new ConfigManager();
+    console.log('✅ ConfigManager initialized');
+    
     await loadCurrentConfig();
+    console.log('✅ Configuration loaded');
+    
     setupEventListeners();
+    console.log('✅ Event listeners setup');
+    
     setupQuickActions();
+    console.log('✅ Quick actions setup');
     
     // Check if opened from settings
     const urlParams = new URLSearchParams(window.location.search);
@@ -27,9 +60,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ Popup initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing popup:', error);
-    showStatusMessage('Error initializing popup', 'error');
+    console.error('Error stack:', error.stack);
+    showStatusMessage(`Error initializing popup: ${error.message}`, 'error');
+    
+    // Show detailed error info in console
+    console.log('Available globals:', {
+      ConfigManager: typeof ConfigManager,
+      ApiKeyProtection: typeof ApiKeyProtection,
+      chrome: typeof chrome
+    });
+    
+    // Run diagnostics to help with debugging
+    runDiagnostics();
   }
-});
+}
+
+// Initialize immediately if DOM is ready, otherwise wait for DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePopup);
+} else {
+  initializePopup();
+}
 
 /**
  * Load current configuration
@@ -51,76 +102,145 @@ async function loadCurrentConfig() {
  * Populate form with current config
  */
 function populateForm(config) {
-  // Response style
-  const responseStyleSelect = document.getElementById('response-style');
-  responseStyleSelect.value = config.responseStyle || 'natural';
-  
-  // Language
-  const languageSelect = document.getElementById('language');
-  languageSelect.value = config.language || 'id';
-  
-  // Fill speed
-  const fillSpeedSelect = document.getElementById('fill-speed');
-  fillSpeedSelect.value = config.fillSpeed || 'normal';
-  
-  // Checkboxes
-  document.getElementById('auto-fill').checked = config.autoFillEnabled !== false;
-  document.getElementById('notifications').checked = config.notifications !== false;
-  
-  // Update AI status - always ready since API key is built-in
-  updateConnectionStatus('connected', 'AI Ready - Powered by Gemini');
+  try {
+    // Response style
+    const responseStyleSelect = document.getElementById('response-style');
+    if (responseStyleSelect) {
+      responseStyleSelect.value = config.responseStyle || 'natural';
+    } else {
+      console.warn('response-style element not found');
+    }
+    
+    // Language
+    const languageSelect = document.getElementById('language');
+    if (languageSelect) {
+      languageSelect.value = config.language || 'id';
+    } else {
+      console.warn('language element not found');
+    }
+    
+    // Fill speed
+    const fillSpeedSelect = document.getElementById('fill-speed');
+    if (fillSpeedSelect) {
+      fillSpeedSelect.value = config.fillSpeed || 'normal';
+    } else {
+      console.warn('fill-speed element not found');
+    }
+    
+    // Checkboxes
+    const autoFillCheckbox = document.getElementById('auto-fill');
+    if (autoFillCheckbox) {
+      autoFillCheckbox.checked = config.autoFillEnabled !== false;
+    } else {
+      console.warn('auto-fill element not found');
+    }
+    
+    const notificationsCheckbox = document.getElementById('notifications');
+    if (notificationsCheckbox) {
+      notificationsCheckbox.checked = config.notifications !== false;
+    } else {
+      console.warn('notifications element not found');
+    }
+    
+    // Update AI status - always ready since API key is built-in
+    updateConnectionStatus('connected', 'AI Ready - Powered by Gemini');
+  } catch (error) {
+    console.error('Error populating form:', error);
+    throw error;
+  }
 }
 
 /**
  * Setup event listeners
  */
 function setupEventListeners() {
-  // Test connection button
-  document.getElementById('test-connection-btn').addEventListener('click', () => testGeminiConnection(true));
-  
-  // Save button
-  document.getElementById('save-btn').addEventListener('click', saveConfiguration);
-  
-  // Reset button
-  document.getElementById('reset-btn').addEventListener('click', resetConfiguration);
-  
-  // Form changes
-  const formElements = ['response-style', 'language', 'fill-speed', 'auto-fill', 'notifications'];
-  formElements.forEach(id => {
-    const element = document.getElementById(id);
-    element.addEventListener('change', handleFormChange);
-  });
+  try {
+    // Test connection button
+    const testConnBtn = document.getElementById('test-connection-btn');
+    if (testConnBtn) {
+      testConnBtn.addEventListener('click', () => testGeminiConnection(true));
+    } else {
+      console.warn('test-connection-btn element not found');
+    }
+    
+    // Save button
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', saveConfiguration);
+    } else {
+      console.warn('save-btn element not found');
+    }
+    
+    // Reset button
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetConfiguration);
+    } else {
+      console.warn('reset-btn element not found');
+    }
+    
+    // Form changes
+    const formElements = ['response-style', 'language', 'fill-speed', 'auto-fill', 'notifications'];
+    formElements.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('change', handleFormChange);
+      } else {
+        console.warn(`Form element '${id}' not found`);
+      }
+    });
+  } catch (error) {
+    console.error('Error setting up event listeners:', error);
+    throw error;
+  }
 }
 
 /**
  * Setup quick actions
  */
 function setupQuickActions() {
-  // Open Google Form
-  document.getElementById('open-form-btn').addEventListener('click', () => {
-    chrome.tabs.create({
-      url: 'https://docs.google.com/forms/'
-    });
-    window.close();
-  });
-  
-  // View tutorial
-  document.getElementById('view-tutorial-btn').addEventListener('click', () => {
-    chrome.tabs.create({
-      url: 'https://github.com/your-username/autofy-extension/wiki/Tutorial'
-    });
-    window.close();
-  });
-  
-  // API Test Page (for troubleshooting)
-  const testApiBtn = document.getElementById('test-api-btn');
-  if (testApiBtn) {
-    testApiBtn.addEventListener('click', () => {
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('test-api.html')
+  try {
+    // Open Google Form
+    const openFormBtn = document.getElementById('open-form-btn');
+    if (openFormBtn) {
+      openFormBtn.addEventListener('click', () => {
+        chrome.tabs.create({
+          url: 'https://docs.google.com/forms/'
+        });
+        window.close();
       });
-      window.close();
-    });
+    } else {
+      console.warn('open-form-btn element not found');
+    }
+    
+    // View tutorial
+    const tutorialBtn = document.getElementById('view-tutorial-btn');
+    if (tutorialBtn) {
+      tutorialBtn.addEventListener('click', () => {
+        chrome.tabs.create({
+          url: 'https://github.com/your-username/autofy-extension/wiki/Tutorial'
+        });
+        window.close();
+      });
+    } else {
+      console.warn('view-tutorial-btn element not found');
+    }
+    
+    // API Test Page (for troubleshooting)
+    const testApiBtn = document.getElementById('test-api-btn');
+    if (testApiBtn) {
+      testApiBtn.addEventListener('click', () => {
+        chrome.tabs.create({
+          url: chrome.runtime.getURL('test-api.html')
+        });
+        window.close();
+      });
+    } else {
+      console.warn('test-api-btn element not found');
+    }
+  } catch (error) {
+    console.error('Error setting up quick actions:', error);
+    throw error;
   }
 }
 
@@ -197,16 +317,30 @@ async function testGeminiConnection(showResult = true) {
  * Update connection status
  */
 function updateConnectionStatus(status, message) {
-  const connectionStatus = document.getElementById('connection-status');
-  const indicator = connectionStatus.querySelector('.status-indicator');
-  const text = connectionStatus.querySelector('span');
-  
-  // Remove all status classes
-  indicator.classList.remove('connected', 'disconnected', 'testing');
-  
-  // Add new status
-  indicator.classList.add(status);
-  text.textContent = message;
+  try {
+    const connectionStatus = document.getElementById('connection-status');
+    if (!connectionStatus) {
+      console.warn('connection-status element not found');
+      return;
+    }
+    
+    const indicator = connectionStatus.querySelector('.status-indicator');
+    const text = connectionStatus.querySelector('span');
+    
+    if (!indicator || !text) {
+      console.warn('connection status child elements not found');
+      return;
+    }
+    
+    // Remove all status classes
+    indicator.classList.remove('connected', 'disconnected', 'testing');
+    
+    // Add new status
+    indicator.classList.add(status);
+    text.textContent = message;
+  } catch (error) {
+    console.error('Error updating connection status:', error);
+  }
 }
 
 /**
@@ -285,16 +419,26 @@ async function resetConfiguration() {
  * Show status message
  */
 function showStatusMessage(message, type = 'info') {
-  const statusEl = document.getElementById('status-message');
-  
-  statusEl.textContent = message;
-  statusEl.className = `status-message ${type}`;
-  statusEl.style.display = 'block';
-  
-  // Auto hide after 5 seconds
-  setTimeout(() => {
-    statusEl.style.display = 'none';
-  }, 5000);
+  try {
+    const statusEl = document.getElementById('status-message');
+    if (!statusEl) {
+      console.warn('status-message element not found');
+      console.log('Status message:', message, type);
+      return;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = `status-message ${type}`;
+    statusEl.style.display = 'block';
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+      statusEl.style.display = 'none';
+    }, 5000);
+  } catch (error) {
+    console.error('Error showing status message:', error);
+    console.log('Status message:', message, type);
+  }
 }
 
 /**
@@ -458,3 +602,81 @@ function addCurrentFormAction(tab) {
 checkCurrentTab();
 
 console.log('🎯 Autofy popup script loaded');
+
+/**
+ * Run comprehensive diagnostics
+ */
+function runDiagnostics() {
+  console.log('🔍 Running popup diagnostics...');
+  
+  const diagnostics = {
+    domReady: document.readyState,
+    timestamp: new Date().toISOString(),
+    globals: {
+      ConfigManager: typeof ConfigManager,
+      ApiKeyProtection: typeof ApiKeyProtection,
+      chrome: typeof chrome
+    },
+    domElements: {},
+    errors: []
+  };
+  
+  // Check required DOM elements
+  const requiredElements = [
+    'response-style', 'language', 'fill-speed', 'auto-fill', 'notifications',
+    'test-connection-btn', 'save-btn', 'reset-btn', 'open-form-btn', 
+    'view-tutorial-btn', 'test-api-btn', 'connection-status', 'status-message'
+  ];
+  
+  requiredElements.forEach(id => {
+    const element = document.getElementById(id);
+    diagnostics.domElements[id] = element ? 'found' : 'missing';
+  });
+  
+  // Check connection status sub-elements
+  const connectionStatus = document.getElementById('connection-status');
+  if (connectionStatus) {
+    diagnostics.domElements['connection-status-indicator'] = 
+      connectionStatus.querySelector('.status-indicator') ? 'found' : 'missing';
+    diagnostics.domElements['connection-status-text'] = 
+      connectionStatus.querySelector('span') ? 'found' : 'missing';
+  }
+  
+  // Test class instantiation
+  try {
+    if (typeof ApiKeyProtection !== 'undefined') {
+      const apiProtection = new ApiKeyProtection();
+      const apiKey = apiProtection.getApiKey();
+      diagnostics.apiKeyLength = apiKey ? apiKey.length : 0;
+      diagnostics.apiKeyValid = apiKey && apiKey.length > 10 && apiKey.startsWith('AIza');
+    }
+  } catch (error) {
+    diagnostics.errors.push(`ApiKeyProtection error: ${error.message}`);
+  }
+  
+  try {
+    if (typeof ConfigManager !== 'undefined') {
+      const configManager = new ConfigManager();
+      diagnostics.configManagerCreated = true;
+    }
+  } catch (error) {
+    diagnostics.errors.push(`ConfigManager error: ${error.message}`);
+  }
+  
+  console.log('📊 Popup Diagnostics Results:', diagnostics);
+  
+  // Create summary
+  const missingElements = Object.entries(diagnostics.domElements)
+    .filter(([key, value]) => value === 'missing')
+    .map(([key]) => key);
+  
+  if (missingElements.length > 0) {
+    console.warn('⚠️ Missing DOM elements:', missingElements);
+  }
+  
+  if (diagnostics.errors.length > 0) {
+    console.error('❌ Initialization errors:', diagnostics.errors);
+  }
+  
+  return diagnostics;
+}

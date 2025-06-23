@@ -21,30 +21,48 @@ async function initializeAutofy() {
     configManager = new ConfigManager();
     formAnalyzer = new FormAnalyzer();
     formFiller = new FormFiller();
-    
-    // Load konfigurasi
+      // Load konfigurasi
     const config = await configManager.getConfig();
     console.log('⚙️ Config loaded:', !!config);
     
     // Initialize Gemini service dengan API key
+    let apiKey = null;
+    
+    // Try to get API key from config first
     if (config.geminiApiKey && configManager.isValidApiKey(config.geminiApiKey)) {
-      geminiService = new GeminiService(config.geminiApiKey);
-      console.log('✅ Gemini service initialized');
+      apiKey = config.geminiApiKey;
+      console.log('✅ Using API key from config');
     } else {
-      console.warn('⚠️ Gemini API key not found or invalid');
       // Try to get API key from protection system
       try {
         if (typeof ApiKeyProtection !== 'undefined') {
           const apiProtection = new ApiKeyProtection();
-          const apiKey = apiProtection.getApiKey();
-          if (apiKey) {
-            geminiService = new GeminiService(apiKey);
-            console.log('✅ Gemini service initialized with protected API key');
-          }
+          apiKey = apiProtection.getApiKey();
+          console.log('✅ Using API key from protection system');
         }
       } catch (protectionError) {
         console.warn('⚠️ Could not initialize API protection:', protectionError);
       }
+    }
+    
+    // Initialize Gemini service
+    if (apiKey && apiKey.length > 20) {
+      try {
+        geminiService = new GeminiService(apiKey);
+        console.log('✅ Gemini service initialized successfully');
+        
+        // Test the service
+        const testResult = await geminiService.testConnection();
+        if (testResult.success) {
+          console.log('✅ Gemini API connection test passed');
+        } else {
+          console.warn('⚠️ Gemini API connection test failed:', testResult.error);
+        }
+      } catch (serviceError) {
+        console.error('❌ Failed to initialize Gemini service:', serviceError);
+      }
+    } else {
+      console.error('❌ No valid API key found for Gemini service');
     }
     
     // Cek apakah ini halaman Google Form yang valid
@@ -328,48 +346,73 @@ function updateFormInfo(formData) {
  * Isi semua pertanyaan atau hanya yang belum dijawab
  */
 async function fillAllQuestions(onlyUnanswered = false) {
+  console.log('🚀 Starting fillAllQuestions...');
+  
   if (!geminiService) {
-    setStatus('❌ Gemini API tidak tersedia. Periksa pengaturan.', 'error');
+    console.error('❌ Gemini service is not initialized');
+    setStatus('❌ AI Service belum siap. Refresh halaman dan coba lagi.', 'error');
+    return;
+  }
+  
+  if (!formAnalyzer) {
+    console.error('❌ Form analyzer is not initialized');
+    setStatus('❌ Form analyzer belum siap. Refresh halaman dan coba lagi.', 'error');
+    return;
+  }
+  
+  if (!formFiller) {
+    console.error('❌ Form filler is not initialized');
+    setStatus('❌ Form filler belum siap. Refresh halaman dan coba lagi.', 'error');
     return;
   }
   
   if (isProcessing) {
+    console.log('⚠️ Already processing, skipping...');
     return;
   }
   
   isProcessing = true;
+  console.log('✅ All services ready, starting form filling...');
   
   try {
     // Analyze form ulang untuk data terbaru
+    console.log('📊 Analyzing form...');
     const formData = formAnalyzer.analyzeForm();
     if (!formData) {
       throw new Error('Gagal menganalisis form');
     }
+    
+    console.log('📊 Form data:', formData);
+    console.log('📊 Found questions:', formData.questions.length);
     
     // Filter pertanyaan yang perlu diisi
     const questionsToFill = onlyUnanswered 
       ? formData.questions.filter(q => !q.answered)
       : formData.questions;
     
+    console.log('📊 Questions to fill:', questionsToFill.length);
+    
     if (questionsToFill.length === 0) {
       setStatus('✅ Semua pertanyaan sudah dijawab', 'success');
       isProcessing = false;
       return;
     }
-    
-    // Setup progress
+      // Setup progress
     showProgress();
     const total = questionsToFill.length;
+    console.log(`🎯 Processing ${total} questions...`);
     
     // Get settings
     const config = await configManager.getConfig();
-    const responseStyle = document.getElementById('response-style').value;
+    const responseStyle = config.responseStyle || 'natural';
+    console.log('⚙️ Response style:', responseStyle);
     
     let successCount = 0;
     let errorCount = 0;
     
     for (let i = 0; i < questionsToFill.length; i++) {
       const question = questionsToFill[i];
+      console.log(`\n🔄 Processing question ${i + 1}/${total}:`, question.text.substring(0, 100));
       
       try {
         updateProgress(i + 1, total, `Memproses: ${question.text.substring(0, 50)}...`);
@@ -378,39 +421,51 @@ async function fillAllQuestions(onlyUnanswered = false) {
         const context = {
           questionType: question.type,
           options: question.options,
-          language: config.language,
+          language: config.language || 'id',
           responseStyle: responseStyle
         };
         
+        console.log('🤖 Generating answer with context:', context);
         const answer = await geminiService.generateAnswer(question.text, context);
+        console.log('🤖 Generated answer:', answer);
+        
+        if (!answer || answer.trim() === '') {
+          throw new Error('Empty answer generated');
+        }
         
         // Fill the answer
+        console.log('📝 Filling answer into form...');
         const filled = await formFiller.fillQuestion(question, answer);
+        console.log('📝 Fill result:', filled);
         
         if (filled) {
           successCount++;
-          console.log(`✅ Filled question ${i + 1}: ${question.text}`);
+          console.log(`✅ Successfully filled question ${i + 1}`);
         } else {
           errorCount++;
-          console.warn(`⚠️ Failed to fill question ${i + 1}: ${question.text}`);
+          console.warn(`⚠️ Failed to fill question ${i + 1}`);
         }
         
         // Small delay between questions
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        await new Promise(resolve => setTimeout(resolve, 1000));        
       } catch (error) {
         errorCount++;
         console.error(`❌ Error processing question ${i + 1}:`, error);
+        console.error('Question details:', question);
+        console.error('Error stack:', error.stack);
       }
     }
     
     hideProgress();
+    console.log(`\n📊 Final results: ${successCount} success, ${errorCount} errors`);
     
     // Show final status
     if (successCount > 0) {
       setStatus(`✅ Berhasil mengisi ${successCount} pertanyaan${errorCount > 0 ? `, ${errorCount} gagal` : ''}`, 'success');
+    } else if (errorCount > 0) {
+      setStatus(`❌ Gagal mengisi semua pertanyaan (${errorCount} error). Cek console untuk detail.`, 'error');
     } else {
-      setStatus(`❌ Gagal mengisi pertanyaan (${errorCount} error)`, 'error');
+      setStatus(`❌ Tidak ada pertanyaan yang berhasil diisi`, 'error');
     }
     
     // Refresh form analysis
